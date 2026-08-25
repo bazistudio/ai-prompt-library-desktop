@@ -46,6 +46,7 @@ function CreatePromptContent() {
   }, []);
 
   const executeSavePrompt = async () => {
+    if (saving) return;
     setSaving(true);
     setError(null);
 

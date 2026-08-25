@@ -170,7 +170,15 @@ export default function PromptDetailPage() {
   };
 
   const handleSaveAsNewVersion = async () => {
-    if (!prompt || !editedContent.trim()) return;
+    if (!prompt || !editedContent.trim() || savingVersion) return;
+
+    // Check if content was actually changed from current active version
+    const activeContent = activeVersion?.content || "";
+    if (editedContent.trim() === activeContent.trim()) {
+      setError("No changes detected. Please edit the prompt content before saving a new version.");
+      return;
+    }
+
     setSavingVersion(true);
     setError(null);
 
@@ -333,7 +341,9 @@ export default function PromptDetailPage() {
                 </span>
               )}
               <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Active: v{selectedVersionNum} (of v{prompt.current_version})
+                {(prompt.versions?.length || 1) > 1
+                  ? `Active: v${selectedVersionNum} (of v${prompt.current_version})`
+                  : `Version v1`}
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border uppercase">
                 {direction.toUpperCase()}
@@ -395,69 +405,71 @@ export default function PromptDetailPage() {
         </div>
       </div>
 
-      {/* Version History Toolbar */}
-      <div className="glass-card p-4 rounded-2xl border border-border space-y-4 bg-card">
-        <div className="flex items-center justify-between border-b border-border/40 pb-3">
-          <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Immutable Version History
-            </h3>
+      {/* Version History Toolbar (Shown when more than 1 version exists) */}
+      {(prompt.versions && prompt.versions.length > 1) && (
+        <div className="glass-card p-4 rounded-2xl border border-border space-y-4 bg-card">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Immutable Version History
+              </h3>
+            </div>
+
+            {!isCurrentVersion && (
+              <button
+                onClick={handleRestoreAsNewVersion}
+                disabled={savingVersion}
+                className="px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Restore v{selectedVersionNum} as New Version</span>
+              </button>
+            )}
           </div>
 
-          {!isCurrentVersion && (
-            <button
-              onClick={handleRestoreAsNewVersion}
-              disabled={savingVersion}
-              className="px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Restore v{selectedVersionNum} as New Version</span>
-            </button>
+          {/* Version Pills Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {prompt.versions?.map((ver) => {
+              const isSelected = ver.version_number === selectedVersionNum;
+              const isLatest = ver.version_number === prompt.current_version;
+
+              return (
+                <button
+                  key={ver.id}
+                  onClick={() => handleSelectVersion(ver.version_number)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                      : "bg-secondary/40 text-muted-foreground hover:text-foreground border-border hover:bg-secondary"
+                  }`}
+                >
+                  <span>v{ver.version_number}</span>
+                  {isLatest && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected ? "bg-background/20 text-primary-foreground" : "bg-primary/20 text-primary"
+                      }`}
+                    >
+                      Current
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected Version Meta Note */}
+          {activeVersion && (
+            <div className="text-[11px] text-muted-foreground flex items-center justify-between px-1">
+              <span>
+                <strong>Note:</strong> {activeVersion.change_summary || `Version v${activeVersion.version_number}`}
+              </span>
+              <span>Recorded: {formatDate(activeVersion.created_at)}</span>
+            </div>
           )}
         </div>
-
-        {/* Version Pills Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          {prompt.versions?.map((ver) => {
-            const isSelected = ver.version_number === selectedVersionNum;
-            const isLatest = ver.version_number === prompt.current_version;
-
-            return (
-              <button
-                key={ver.id}
-                onClick={() => handleSelectVersion(ver.version_number)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                    : "bg-secondary/40 text-muted-foreground hover:text-foreground border-border hover:bg-secondary"
-                }`}
-              >
-                <span>v{ver.version_number}</span>
-                {isLatest && (
-                  <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isSelected ? "bg-background/20 text-primary-foreground" : "bg-primary/20 text-primary"
-                    }`}
-                  >
-                    Current
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected Version Meta Note */}
-        {activeVersion && (
-          <div className="text-[11px] text-muted-foreground flex items-center justify-between px-1">
-            <span>
-              <strong>Note:</strong> {activeVersion.change_summary || `Version v${activeVersion.version_number}`}
-            </span>
-            <span>Recorded: {formatDate(activeVersion.created_at)}</span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Workbench Tab Selector & Interactive Runners */}
       {!isEditing && (
