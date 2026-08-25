@@ -33,11 +33,11 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         </div>
 
         <div className="flex-grow overflow-y-auto">
-          <SidebarCategory />
+          <SidebarCategory onNavigate={onClose} />
         </div>
 
         <div className="mt-auto">
-          <SidebarFooter />
+          <SidebarFooter onNavigate={onClose} />
         </div>
       </div>
     </div>

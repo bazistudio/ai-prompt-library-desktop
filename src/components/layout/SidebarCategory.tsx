@@ -14,7 +14,11 @@ import { CategoryItem, fetchCategories } from "@/services/categories/categorySer
 import { CategoryModal } from "@/components/categories/CategoryModal";
 import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
 
-function SidebarCategoryContent() {
+interface SidebarCategoryProps {
+  onNavigate?: () => void;
+}
+
+function SidebarCategoryContent({ onNavigate }: SidebarCategoryProps) {
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -69,6 +73,7 @@ function SidebarCategoryContent() {
         </span>
         <Link
           to="/dashboard"
+          onClick={onNavigate}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname === "/dashboard"
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -80,6 +85,7 @@ function SidebarCategoryContent() {
         </Link>
         <Link
           to="/prompts"
+          onClick={onNavigate}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname === "/prompts" && !isFavorites && !activeCategory
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -91,6 +97,7 @@ function SidebarCategoryContent() {
         </Link>
         <Link
           to="/workflows"
+          onClick={onNavigate}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname.startsWith("/workflows")
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -105,6 +112,7 @@ function SidebarCategoryContent() {
         </Link>
         <Link
           to="/prompts?favorite=true"
+          onClick={onNavigate}
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             isFavorites
               ? "bg-accent/20 text-accent font-bold"
@@ -139,6 +147,7 @@ function SidebarCategoryContent() {
           {/* All Filter */}
           <Link
             to="/prompts"
+            onClick={onNavigate}
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
               pathname === "/prompts" && !activeCategory && !isFavorites
                 ? "bg-secondary text-foreground font-bold"
@@ -160,6 +169,7 @@ function SidebarCategoryContent() {
               <div key={cat.id} className="group relative flex items-center">
                 <Link
                   to={targetUrl}
+                  onClick={onNavigate}
                   className={`flex-1 flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
                     isCatActive
                       ? "bg-secondary text-foreground font-bold"
@@ -197,10 +207,10 @@ function SidebarCategoryContent() {
   );
 }
 
-export function SidebarCategory() {
+export function SidebarCategory({ onNavigate }: SidebarCategoryProps) {
   return (
     <Suspense fallback={<div className="p-4 space-y-4 animate-pulse"><div className="h-6 w-3/4 bg-card rounded" /><div className="h-4 w-1/2 bg-card rounded" /></div>}>
-      <SidebarCategoryContent />
+      <SidebarCategoryContent onNavigate={onNavigate} />
     </Suspense>
   );
 }

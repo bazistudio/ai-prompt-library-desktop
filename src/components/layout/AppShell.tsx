@@ -21,11 +21,28 @@ interface AppShellProps {
 
 export function AppShell({ children, session }: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("ai_prompt_library_sidebar_collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const navigate = useNavigate();
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("ai_prompt_library_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const username = session?.username || "Developer";
   const email = session?.email || "developer@example.com";
@@ -131,6 +148,8 @@ export function AppShell({ children, session }: AppShellProps) {
         onMenuToggle={() => setMobileSidebarOpen(true)}
         onQuickCapture={() => setQuickCaptureOpen(true)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onToggleSidebarCollapse={toggleSidebar}
+        isSidebarCollapsed={sidebarCollapsed}
         username={username}
         email={email}
       />
@@ -144,7 +163,10 @@ export function AppShell({ children, session }: AppShellProps) {
         />
 
         {/* Desktop Sidebar (Left) */}
-        <Sidebar />
+        <Sidebar
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
 
         {/* Scrollable Content (Center/Right) */}
         <main className="flex-1 overflow-y-auto h-[calc(100vh-65px)] relative">
