@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SettingsSection } from "./SettingsSection";
 import { SettingRow } from "./SettingRow";
-import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle } from "lucide-react";
+import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle, Eye, EyeOff } from "lucide-react";
 
 import { SecurityStatusData } from "@/types/electron";
 
@@ -25,12 +25,16 @@ export function AccountSettings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Remove Password Modal State
   const [showRemovePasswordModal, setShowRemovePasswordModal] = useState(false);
   const [removePasswordInput, setRemovePasswordInput] = useState("");
+  const [showRemovePasswordInput, setShowRemovePasswordInput] = useState(false);
   const [removePasswordMsg, setRemovePasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [removePasswordLoading, setRemovePasswordLoading] = useState(false);
 
@@ -38,12 +42,17 @@ export function AccountSettings() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinPassword, setPinPassword] = useState("");
   const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPinPassword, setShowPinPassword] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
 
   // Remove PIN Modal State
   const [showRemovePinModal, setShowRemovePinModal] = useState(false);
   const [removePinInput, setRemovePinInput] = useState("");
+  const [showRemovePinInput, setShowRemovePinInput] = useState(false);
   const [removePinMsg, setRemovePinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [removePinLoading, setRemovePinLoading] = useState(false);
 
@@ -181,6 +190,10 @@ export function AccountSettings() {
       setPinMsg({ type: "error", text: "PIN must be exactly 6 digits." });
       return;
     }
+    if (newPin !== confirmPin) {
+      setPinMsg({ type: "error", text: "PINs do not match." });
+      return;
+    }
 
     setPinLoading(true);
     try {
@@ -190,6 +203,7 @@ export function AccountSettings() {
           setPinMsg({ type: "success", text: "6-Digit PIN configured!" });
           setPinPassword("");
           setNewPin("");
+          setConfirmPin("");
           setTimeout(() => setShowPinModal(false), 1200);
           await fetchSecurityStatus();
         } else {
@@ -303,6 +317,8 @@ export function AccountSettings() {
   const hasPassword = Boolean(secStatus?.hasPassword);
   const minLengthValid = newPassword.length >= 6;
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const pinValidLength = /^\d{6}$/.test(newPin);
+  const pinMatches = newPin.length === 6 && newPin === confirmPin;
 
   return (
     <div className="space-y-8 max-w-2xl text-left">
@@ -370,6 +386,9 @@ export function AccountSettings() {
               <button
                 onClick={() => {
                   setGuardWarning(null);
+                  setShowCurrentPassword(false);
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
                   setShowPasswordModal(true);
                 }}
                 className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -381,6 +400,7 @@ export function AccountSettings() {
                 onClick={() => {
                   setRemovePasswordMsg(null);
                   setRemovePasswordInput("");
+                  setShowRemovePasswordInput(false);
                   setShowRemovePasswordModal(true);
                 }}
                 className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -392,6 +412,9 @@ export function AccountSettings() {
             <button
               onClick={() => {
                 setGuardWarning(null);
+                setShowCurrentPassword(false);
+                setShowNewPassword(false);
+                setShowConfirmPassword(false);
                 setShowPasswordModal(true);
               }}
               className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
@@ -418,6 +441,10 @@ export function AccountSettings() {
                   setPinMsg(null);
                   setPinPassword("");
                   setNewPin("");
+                  setConfirmPin("");
+                  setShowPinPassword(false);
+                  setShowNewPin(false);
+                  setShowConfirmPin(false);
                   setShowPinModal(true);
                 }}
                 className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -429,6 +456,7 @@ export function AccountSettings() {
                 onClick={() => {
                   setRemovePinMsg(null);
                   setRemovePinInput("");
+                  setShowRemovePinInput(false);
                   setShowRemovePinModal(true);
                 }}
                 className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
@@ -442,6 +470,10 @@ export function AccountSettings() {
                 setPinMsg(null);
                 setPinPassword("");
                 setNewPin("");
+                setConfirmPin("");
+                setShowPinPassword(false);
+                setShowNewPin(false);
+                setShowConfirmPin(false);
                 setShowPinModal(true);
               }}
               className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
@@ -557,13 +589,24 @@ export function AccountSettings() {
               {hasPassword && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
-                  <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      tabIndex={-1}
+                      title={showCurrentPassword ? "Hide password" : "Show password"}
+                    >
+                      {showCurrentPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -571,26 +614,48 @@ export function AccountSettings() {
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">
                   {hasPassword ? "New Password" : "Password"}
                 </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">
                   {hasPassword ? "Confirm New Password" : "Confirm Password"}
                 </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
 
               {/* Password Requirements Checklist */}
@@ -654,28 +719,87 @@ export function AccountSettings() {
               {hasPassword && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Verify Current Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={pinPassword}
-                    onChange={(e) => setPinPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPinPassword ? "text" : "password"}
+                      required
+                      value={pinPassword}
+                      onChange={(e) => setPinPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPinPassword(!showPinPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      tabIndex={-1}
+                      title={showPinPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPinPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
               )}
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">6-Digit Numerical PIN</label>
-                <input
-                  type="password"
-                  required
-                  maxLength={6}
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPin ? "text" : "password"}
+                    required
+                    maxLength={6}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPin(!showNewPin)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showNewPin ? "Hide PIN" : "Show PIN"}
+                  >
+                    {showNewPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Confirm 6-Digit PIN</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPin ? "text" : "password"}
+                    required
+                    maxLength={6}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                    placeholder="••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPin(!showConfirmPin)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showConfirmPin ? "Hide PIN" : "Show PIN"}
+                  >
+                    {showConfirmPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* PIN Requirements Checklist */}
+              <div className="p-3 rounded-xl bg-secondary/40 border border-border text-[11px] space-y-1">
+                <span className="font-semibold text-muted-foreground block mb-1">PIN requirements</span>
+                <div className={`flex items-center gap-1.5 ${pinValidLength ? "text-emerald-500" : "text-muted-foreground"}`}>
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>Exactly 6 numeric digits</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${pinMatches ? "text-emerald-500" : "text-muted-foreground"}`}>
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>PINs match</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -688,8 +812,8 @@ export function AccountSettings() {
                 </button>
                 <button
                   type="submit"
-                  disabled={pinLoading}
-                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                  disabled={pinLoading || !pinValidLength || !pinMatches}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {pinLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save PIN"}
                 </button>
@@ -723,14 +847,25 @@ export function AccountSettings() {
             <form onSubmit={handleRemovePasswordSubmit} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
-                <input
-                  type="password"
-                  required
-                  value={removePasswordInput}
-                  onChange={(e) => setRemovePasswordInput(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type={showRemovePasswordInput ? "text" : "password"}
+                    required
+                    value={removePasswordInput}
+                    onChange={(e) => setRemovePasswordInput(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRemovePasswordInput(!showRemovePasswordInput)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showRemovePasswordInput ? "Hide password" : "Show password"}
+                  >
+                    {showRemovePasswordInput ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -778,14 +913,25 @@ export function AccountSettings() {
             <form onSubmit={handleRemovePinSubmit} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Current PIN or Password</label>
-                <input
-                  type="password"
-                  required
-                  value={removePinInput}
-                  onChange={(e) => setRemovePinInput(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
-                />
+                <div className="relative">
+                  <input
+                    type={showRemovePinInput ? "text" : "password"}
+                    required
+                    value={removePinInput}
+                    onChange={(e) => setRemovePinInput(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRemovePinInput(!showRemovePinInput)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    title={showRemovePinInput ? "Hide PIN" : "Show PIN"}
+                  >
+                    {showRemovePinInput ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
