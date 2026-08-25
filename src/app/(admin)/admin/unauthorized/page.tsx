@@ -1,5 +1,5 @@
 import { ShieldAlert, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 export default function UnauthorizedPage() {
   return (
@@ -18,7 +18,7 @@ export default function UnauthorizedPage() {
 
         <div className="pt-4 flex justify-center">
           <Link
-            href="/dashboard"
+            to="/dashboard"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm transition-colors shadow-md shadow-primary/20"
           >
             <ArrowLeft className="h-4 w-4" />

@@ -1,7 +1,5 @@
-"use client";
-
-import { use, useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   fetchWorkflowById,
   updateWorkflow,
@@ -38,12 +36,8 @@ interface StepExecutionState {
   error?: string;
 }
 
-export default function WorkflowDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function WorkflowDetailPage() {
+  const { id = "" } = useParams<{ id: string }>();
 
   const [workflow, setWorkflow] = useState<WorkflowItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -327,7 +321,7 @@ export default function WorkflowDetailPage({
       <div className="max-w-4xl mx-auto px-6 py-12 text-center space-y-4">
         <h2 className="text-xl font-bold text-foreground">Workflow Not Found</h2>
         <Link
-          href="/workflows"
+          to="/workflows"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -343,7 +337,7 @@ export default function WorkflowDetailPage({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/workflows"
+            to="/workflows"
             className="p-2 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

@@ -1,16 +1,14 @@
-import { getSession } from "@/auth/online/session";
-import { getPromptStats } from "@/database/local/promptStore";
+import { useState, useEffect } from "react";
 import { Terminal, Star, Layers, Folder, Plus, ArrowRight, Clock, Sparkles } from "lucide-react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { BatchExportImportTrigger } from "@/components/prompts/BatchExportImportModal";
+import { fetchPromptStats } from "@/services/prompts/promptService";
 
-export default async function DashboardPage() {
-  const isElectron = process.env.IS_ELECTRON === "true" || process.env.NEXT_PUBLIC_IS_ELECTRON === "true";
-  const session = isElectron ? null : await getSession();
-  const username = isElectron ? "Local Workspace" : (session?.username || "Developer");
+export default function DashboardPage() {
+  const username = "Developer";
 
-  let stats = {
+  const [stats, setStats] = useState({
     totalPrompts: 0,
     favoritePrompts: 0,
     totalCategories: 8,
@@ -24,13 +22,19 @@ export default async function DashboardPage() {
       is_favorite: boolean;
       updated_at: number;
     }>,
-  };
+  });
 
-  try {
-    stats = getPromptStats();
-  } catch (err) {
-    console.error("Failed to load prompt stats on dashboard:", err);
-  }
+  useEffect(() => {
+    fetchPromptStats()
+      .then((data) => {
+        if (data) {
+          setStats(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load prompt stats on dashboard:", err);
+      });
+  }, []);
 
   const metrics = [
     {
@@ -94,7 +98,7 @@ export default async function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/prompts/new"
+            to="/prompts/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary shrink-0"
           >
             <Plus className="h-4 w-4" />
@@ -139,7 +143,7 @@ export default async function DashboardPage() {
             </h2>
           </div>
           <Link
-            href="/prompts"
+            to="/prompts"
             className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
           >
             <span>View All</span>
@@ -151,7 +155,7 @@ export default async function DashboardPage() {
           <div className="py-8 text-center space-y-2">
             <p className="text-xs text-muted-foreground">No prompts created yet.</p>
             <Link
-              href="/prompts/new"
+              to="/prompts/new"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -163,7 +167,7 @@ export default async function DashboardPage() {
             {stats.recentPrompts.map((p) => (
               <Link
                 key={p.id}
-                href={`/prompts/${p.id}`}
+                to={`/prompts/${p.id}`}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-background hover:border-primary/40 hover:bg-card transition-all group"
               >
                 <div className="flex items-center gap-3 min-w-0">

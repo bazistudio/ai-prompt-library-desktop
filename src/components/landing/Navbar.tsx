@@ -1,8 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router-dom";
 import { Sun, Moon, Menu, X, ArrowRight } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { landingConfig } from "@/config/landingConfig";
@@ -23,9 +20,9 @@ export function LandingNavbar() {
     <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-background/80 border-b border-border/60 transition-colors">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Brand Logo & Name */}
-        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
+        <Link to="/" className="flex items-center gap-3 group cursor-pointer">
           <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden p-1 shadow-sm group-hover:border-primary/40 transition-all">
-            <Image
+            <img
               src="/images/logo.png"
               alt="Bazi Studio AI Prompt Library Logo"
               width={28}
@@ -91,7 +88,7 @@ export function LandingNavbar() {
           </button>
 
           <Link
-            href="/dashboard"
+            to="/dashboard"
             className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer"
           >
             Open Dashboard
@@ -176,7 +173,7 @@ export function LandingNavbar() {
 
           <div className="pt-3 border-t border-border flex flex-col gap-2">
             <Link
-              href="/dashboard"
+              to="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full text-center px-4 py-2.5 rounded-xl text-xs font-semibold border border-border bg-background text-foreground"
             >

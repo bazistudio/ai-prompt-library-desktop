@@ -1,12 +1,9 @@
-"use client";
-
-import { Shield, KeyRound, AlertCircle } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "react-router-dom";
+import { Shield, KeyRound, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -14,7 +11,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      router.push("/admin/dashboard");
+      navigate("/admin/dashboard");
     }, 600);
   };
 
@@ -70,7 +67,7 @@ export default function AdminLoginPage() {
         </form>
 
         <div className="text-center pt-2">
-          <Link href="/dashboard" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+          <Link to="/dashboard" className="text-xs font-semibold text-muted-foreground hover:text-foreground">
             Return to App
           </Link>
         </div>

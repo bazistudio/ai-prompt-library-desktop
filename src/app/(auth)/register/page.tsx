@@ -1,13 +1,10 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useNavigate, Link } from "react-router-dom";
 import { Terminal, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
 import { registerSchema } from "@/lib/validation/auth";
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -45,8 +42,7 @@ export default function RegisterPage() {
           setError(data.message || "Something went wrong during registration.");
         }
       } else {
-        router.push("/dashboard");
-        router.refresh();
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error(err);
@@ -168,7 +164,7 @@ export default function RegisterPage() {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link
-              href="/login"
+              to="/login"
               className="font-medium text-foreground hover:text-primary-hover transition-colors underline"
             >
               Sign in

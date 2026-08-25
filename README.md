@@ -1,514 +1,252 @@
-# AI Prompt Library
+# AI Prompt Library Desktop
 
-> A personal AI prompt engineering workspace for creating, organizing, testing, versioning, and managing reusable AI prompts.
+> A private, offline-first workspace for creating, organizing, testing, versioning, and managing reusable AI prompts.
 
-AI Prompt Library is a developer-focused application designed to become a centralized workspace for storing and managing hundreds or thousands of AI prompts.
+AI Prompt Library is a developer-focused desktop and web application designed as a centralized, high-performance workspace for storing, organizing, and executing hundreds or thousands of AI prompts.
 
-The project is being built with a web-first architecture using Next.js and MongoDB, with a future Electron desktop application providing local SQLite storage.
-
----
-
-## 🚧 Project Status
-
-**Development — Foundation Phase**
-
-The project is currently being developed incrementally.
-
-Current focus:
-
-- Application foundation
-- Authentication
-- Global design system
-- Theme customization
-- Settings
-- Responsive application shell
-- MongoDB development storage
-- SQLite preparation for future Electron support
-
-The full prompt management system will be implemented in subsequent phases.
+Built with **React 19**, **Vite**, **React Router**, **Tauri 2**, **Rust**, and **SQLite**.
 
 ---
 
-## ✨ Vision
+## ⚡ Highlights
 
-The goal is to build a powerful personal prompt library where developers, designers, marketers, business owners, and AI users can organize their growing collection of prompts in one place.
-
-The long-term application will support:
-
-- Thousands of prompts
-- Categories
-- Tags
-- Prompt templates
-- Variables
-- Prompt versions
-- Master prompts
-- Projects
-- Workflows
-- Prompt testing
-- Search
-- Filtering
-- Favorites
-- Prompt history
-- Online storage
-- Local desktop storage
-- Local ↔ Online synchronization
-
----
-
-## 🧠 Core Concept
-
-The application is designed around a simple idea:
-
-```text
-Create
-   ↓
-Organize
-   ↓
-Test
-   ↓
-Improve
-   ↓
-Version
-   ↓
-Reuse
-```
-
-Instead of keeping prompts scattered across:
-
-- Text files
-- Notes applications
-- Browser bookmarks
-- Chat histories
-- Documents
-- Messaging applications
-
-AI Prompt Library provides one dedicated workspace.
+- 🧠 **Prompt Library & Version History**: Full prompt lifecycle management, markdown editing, versioning, and restore points.
+- ✍️ **Rich Markdown Editor**: Seamless markdown editing with live syntax highlighting, variables, and bidirectional text support.
+- 📁 **Categories, Projects & Workflows**: Multi-workspace organization, dynamic categories, tags, and multi-step chained workflow execution.
+- 🤖 **Multi-Model AI Playground & Arena**: Live prompt testing with Google Gemini, OpenAI, and Anthropic Claude.
+- 🎨 **Semantic Design System**: Dark/light theme toggling powered by CSS tokens and Tailwind CSS v4.
+- 🔒 **Local-First Privacy & Security**: 100% offline-first. Your prompts and API keys stay on your machine.
+- 💾 **SQLite Offline Storage**: Embedded, zero-latency local database storage.
+- ⚡ **Lightweight Native Desktop App**: Fast start times and low memory footprint powered by Tauri 2 and Rust.
 
 ---
 
 ## 🏗️ Architecture
 
-### Current Web Application
 ```text
-┌─────────────────────────────────────────────┐
-│                Next.js 16                   │
-│                                             │
-│  React + TypeScript + Tailwind CSS          │
-│                                             │
-│  App Router + Route Handlers                │
-└───────────────────┬─────────────────────────┘
-                    │
-                    ▼
-             ┌─────────────┐
-             │   MongoDB   │
-             │             │
-             │ Development │
-             │ Data Store  │
-             └─────────────┘
+┌────────────────────────────────────────────────────────┐
+│             AI Prompt Library — Frontend               │
+│                                                        │
+│   React 19 + TypeScript + Vite + Tailwind CSS v4       │
+│   React Router (SPA Navigation & Layouts)              │
+│   Semantic Design Tokens & Theme Engine                │
+└───────────────────────────┬────────────────────────────┘
+                            │
+              IPC / Native Bridge (Tauri 2)
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│               Native Desktop Shell (Rust)              │
+│                                                        │
+│   Tauri 2 Core + File System & Dialog Plugins          │
+│   Local SQLite Database Engine                         │
+│   Secure Local Storage & File Management               │
+└────────────────────────────────────────────────────────┘
 ```
-
-### Future Electron Application
-```text
-                 AI Prompt Library
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-         Save Online           Save Locally
-              │                     │
-              ▼                     ▼
-          MongoDB                SQLite
-              │                     │
-              └──────────┬──────────┘
-                         │
-                  Future Sync
-```
-
-### Important Storage Decision
-During the current Next.js development phase:
-- **MongoDB** is the active data source. Prompt data, categories, tags, versions, templates, projects, and other application data will be developed and tested using MongoDB.
-- **SQLite** is currently prepared as a future local-storage provider for the Electron desktop application.
-- The application does not currently switch between MongoDB and SQLite.
 
 ---
 
 ## 🛠️ Technology Stack
 
-### Frontend
-- Next.js 16
-- React
-- TypeScript
-- Tailwind CSS
-- App Router
+### Frontend & UI
+- **Framework**: React 19 (`react`, `react-dom`)
+- **Build Tool**: Vite (`@vitejs/plugin-react`, `@tailwindcss/vite`)
+- **Routing**: React Router (`react-router-dom`)
+- **Styling**: Tailwind CSS v4 (CSS-first `@theme` configuration)
+- **Icons**: Lucide React (`lucide-react`)
+- **Data Visualization**: Recharts (`recharts`)
 
-### Backend
-Next.js internal server-side functionality:
-- Route Handlers
-- Server Components
-- Server-side utilities
-
-No separate Express backend is used.
-
-### Database
-- MongoDB (Mongoose)
-
-### Future Local Database
-- SQLite (`better-sqlite3`)
-- Electron
-
-### Authentication
-- `bcryptjs`
-- `jose` (JWT)
-- HTTP-only session cookies
-- Zod validation
-
-### UI
-- Tailwind CSS
-- Lucide React
-- Custom semantic design system
+### Desktop Native Engine
+- **Desktop Framework**: Tauri 2 (`@tauri-apps/api`, `@tauri-apps/cli`)
+- **Core Language**: Rust (Tauri 2 runtime, `tauri-plugin-opener`, `tauri-plugin-dialog`)
+- **Local Database**: Embedded SQLite (`better-sqlite3`, native SQLite)
+- **Validation & Serialization**: Zod (`zod`), UUID (`uuid`), JSON
 
 ---
 
-## 🎨 Design System
+## 🎨 Design System & CSS Tokens
 
-The application uses a centralized semantic color system.
+The application uses a centralized semantic color system defined in [`src/app/globals.css`](file:///f:/library/ai%20prompt%20library/src/app/globals.css). Components use semantic Tailwind utilities rather than hardcoded hex codes.
 
-### Default Brand Colors
-- **Primary**: `#1A016F`
-- **Light**: `#FCF4FF`
-- **Accent**: `#C5FFE5`
+### Default Brand Palette
+- **Primary**: `#1A016F` (`--color-primary-value`)
+- **Primary Hover**: `color-mix(in srgb, var(--color-primary-value) 85%, #fff)`
+- **Primary Foreground**: `#FCF4FF` (`--color-primary-foreground-value`)
+- **Accent**: `#C5FFE5` (`--color-accent-value`)
+- **Accent Foreground**: `#07150F` (`--color-accent-foreground-value`)
 
-The design system is intentionally theme-driven. Components should never depend on hardcoded colors. Instead, components use semantic Tailwind color utilities such as:
+### Theme Color Specifications
 
-- `bg-primary` / `text-primary-foreground`
-- `bg-background` / `text-foreground`
-- `bg-card` / `text-card-foreground`
-- `bg-secondary` / `text-muted-foreground`
-- `border-border` / `bg-accent`
+| Token | Dark Theme (Default) | Light Theme | Utility Class |
+| :--- | :--- | :--- | :--- |
+| **Background** | `#0B0620` | `#F8F7FF` | `bg-background` / `text-foreground` |
+| **Foreground** | `#FCF4FF` | `#120E24` | `text-foreground` |
+| **Card** | `#130A2D` | `#FFFFFF` | `bg-card` / `text-card-foreground` |
+| **Popover** | `#130A2D` | `#FFFFFF` | `bg-popover` |
+| **Muted** | `#21163D` | `#EDE9FE` | `bg-muted` / `text-muted-foreground` |
+| **Secondary** | `#21163D` | `#EDE9FE` | `bg-secondary` / `text-secondary-foreground` |
+| **Border** | `#30234D` | `#DED6FA` | `border-border` |
+| **Ring** | `#C5FFE5` | `#1A016F` | `focus:ring-ring` |
 
-This allows the complete application theme to change from Settings without rewriting individual components.
+### Status Colors
+- **Success**: `#059669` (`bg-success`, `text-success`)
+- **Warning**: `#D97706` (`bg-warning`, `text-warning`)
+- **Danger**: `#E11D48` (`bg-danger`, `text-danger`)
+- **Info**: `#2563EB` (`bg-info`, `text-info`)
 
----
-
-## 🎨 Theme Customization
-
-The application supports user customization through:
-- Dark theme
-- Light theme
-- System theme (planned)
-- Accent color selection (planned)
-- Custom accent color (planned)
-- Reduced motion preferences
-
-The default theme is based on the project's primary brand palette. Future versions will provide additional customization options.
-
----
-
-## 🧭 Application Navigation
-
-The application intentionally keeps navigation minimal.
-
-### Navbar
-- Logo & AI Prompt Library Title
-- Prompt Home
-- Global Search (placeholder)
-- Theme Toggler (Dark / Light)
-- Profile Icon & User Details
-- Logout Button
-
-### Sidebar
-- **PROMPT CATEGORIES** (Empty state placeholder + **+ Add Category** button)
-- **Settings** (aligned to bottom)
-- **Docs** (aligned to bottom)
-
-Categories will be user-created rather than hardcoded navigation pages. This allows the library to scale to hundreds of categories without modifying the navigation structure.
+### Typography & Spacing
+- **Sans Font**: Inter (`--font-inter`, sans-serif)
+- **Mono Font**: Geist Mono (`--font-geist-mono`, monospace)
+- **Border Radius**: `sm: 0.375rem` \| `md: 0.625rem` \| `lg: 0.875rem` \| `xl: 1.125rem` \| `2xl: 1.5rem`
 
 ---
 
-## 📚 Planned Prompt Library
+## 🧭 Application Navigation & Routes
 
-The future prompt system will support:
-- **Prompts**: Create, Edit, View, Delete, Duplicate, Favorite, Archive
-- **Organization**: Categories, Tags, Projects, Filters, Search
-- **Prompt Engineering**: Variables, Templates, Master prompts, Prompt versions, Prompt testing, Workflows
-- **Productivity**: Copy prompt, Quick search, Recently used, Favorites, History
+The application uses React Router to provide clean SPA routing across 20 paths:
 
----
+### Public & Auth Routes
+- `/`: Interactive landing page & feature showcase
+- `/login`: Workspace authentication
+- `/register`: Account creation
 
-## ⚙️ Settings
+### Studio Core Routes (`AppShell` Layout)
+- `/dashboard`: Analytics dashboard, prompt counts, and recent prompts
+- `/prompts`: Searchable prompt grid/list with category and tag filtering
+- `/prompts/new`: Prompt creator with variables, tags, and category selector
+- `/prompts/:id`: Full prompt editor, version comparison, test runner, and markdown preview
+- `/workflows`: Multi-step prompt sequence chains
+- `/workflows/:id`: Interactive workflow execution canvas
+- `/templates`: Built-in starter prompt templates across 6 domains
+- `/arena`: Multi-model prompt battleground & side-by-side comparison
+- `/settings`: Appearance, model API keys, storage location, and license activation
 
-The Settings system will eventually contain:
-- Appearance
-- Prompt Editor
-- Library
-- Account
-- Storage
-- About
-
-### Appearance customization will include:
-- Theme selection
-- Accent color
-- Custom colors
-- Reduced motion
-- Interface preferences
-
-### Prompt Editor settings will eventually include:
-- Editor font
-- Font size
-- Word wrapping
-- Line numbers
-- Auto-save
-- Editor width
-
-### Library settings will eventually include:
-- Default view
-- Default sorting
-- Prompt preview
-- Tags visibility
-- Delete confirmation
-
----
-
-## 🔐 Security
-
-Security is a core requirement of the project. The application will:
-- Never store plaintext passwords
-- Hash passwords using `bcryptjs`
-- Keep authentication secrets server-side
-- Use HTTP-only cookies for sessions
-- Validate authentication input with Zod
-- Keep MongoDB credentials server-side
-- Never expose password hashes to clients
-- Never expose JWT secrets through `NEXT_PUBLIC_*` variables
-- Keep local database files out of Git
+### Admin Routes (`AdminLayout`)
+- `/admin/dashboard`: System overview & metrics
+- `/admin/users`: User management & roles
+- `/admin/settings`: Global instance settings
+- `/admin/login`: Super admin portal
+- `/admin/unauthorized`: Permission boundary guard
 
 ---
 
 ## 📁 Project Structure
 
-The project follows a modular Next.js architecture.
-
 ```text
-src/
-├── app/
-│   ├── (auth)/
-│   │   ├── login/
-│   │   └── register/
-│   ├── (dashboard)/
-│   │   ├── dashboard/
-│   │   └── layout.tsx
-│   ├── api/
-│   │   └── auth/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── globals.css
-│
-├── components/
-│   ├── ui/
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   └── LogoutButton.tsx
-│   ├── layout/
-│   │   ├── AppShell.tsx
-│   │   ├── Navbar.tsx
-│   │   ├── Sidebar.tsx
-│   │   ├── SidebarCategory.tsx
-│   │   ├── SidebarFooter.tsx
-│   │   └── MobileSidebar.tsx
-│   └── theme/
-│       └── ThemeProvider.tsx
-│
-├── lib/
-│   ├── mongodb/
-│   ├── sqlite/
-│   ├── auth/
-│   │   ├── jwt.ts
-│   │   └── session.ts
-│   ├── validation/
-│   └── utils/
-│
-├── models/
-│
-├── types/
-│
-├── config/
-│
-└── proxy.ts
+ai-prompt-library/
+├── build/                               # Desktop build assets
+│   └── icon.ico                         # Application icon
+├── docs/                                # Project documentation & design specs
+│   ├── architecture.md
+│   ├── design-system.md
+│   ├── development-rules.md
+│   ├── roadmap.md
+│   └── archive/                         # Preserved architectural legacy files
+├── public/                              # Static public assets
+│   ├── favicon.ico
+│   ├── icons/
+│   │   └── icon.ico
+│   └── images/
+│       ├── logo.png
+│       └── screenshots/
+├── src/                                 # Frontend source application
+│   ├── App.tsx                          # Root React Router switch & layout wrappers
+│   ├── main.tsx                         # React 19 entry point & theme provider
+│   ├── app/                             # Application views & pages
+│   │   ├── (admin)/                     # Admin pages & layout
+│   │   ├── (auth)/                      # Login & registration views
+│   │   ├── (dashboard)/                 # Dashboard, prompts, workflows, arena, settings
+│   │   ├── api/                         # Backend API handlers & data processors
+│   │   ├── globals.css                  # Global Tailwind CSS v4 design tokens
+│   │   └── page.tsx                     # Landing page
+│   ├── auth/                            # Offline & session authentication utilities
+│   ├── components/                      # UI components
+│   │   ├── analytics/                   # Stats & metrics charts
+│   │   ├── categories/                  # Category management modals
+│   │   ├── editor/                      # Rich Markdown editor & syntax renderer
+│   │   ├── landing/                     # Landing page sections & navbar
+│   │   ├── layout/                      # AppShell, Navbar, Sidebar, SidebarCategory
+│   │   ├── modals/                      # Command palette, AI enhance modals
+│   │   ├── prompts/                     # Prompt cards, runners, export/import modal
+│   │   ├── storage/                     # File storage location picker
+│   │   ├── theme/                       # Theme provider & theme toggler
+│   │   ├── ui/                          # Button, Input, Modal, LogoutButton
+│   │   └── workspaces/                  # Workspace / project dropdown switcher
+│   ├── config/                          # Application configuration
+│   ├── database/                        # Local SQLite schema & query layers
+│   │   └── local/
+│   │       ├── schema.ts                # Database tables & migration initializers
+│   │       ├── promptQueries.ts         # Prompts & versions queries
+│   │       └── categoryQueries.ts       # Category management queries
+│   ├── lib/                             # Shared utilities, validation & crypto
+│   ├── services/                        # Service layer (AI, prompts, categories, storage)
+│   └── types/                           # TypeScript interfaces & definitions
+├── src-tauri/                           # Tauri 2 Desktop Shell
+│   ├── Cargo.toml                       # Rust package manifest & dependencies
+│   ├── build.rs                         # Tauri build script
+│   ├── tauri.conf.json                  # Desktop window & bundle configuration
+│   ├── capabilities/                    # Tauri permission capabilities
+│   │   └── default.json
+│   ├── icons/                           # Native application icons
+│   │   └── icon.ico
+│   └── src/
+│       └── main.rs                      # Native application entry point
+├── .gitignore                           # Git ignore rules
+├── index.html                           # Single-page application entry point
+├── package.json                         # Project dependencies & scripts
+├── read.md                              # Concise overview
+├── README.md                            # Comprehensive documentation
+├── tsconfig.json                        # TypeScript configuration
+└── vite.config.ts                       # Vite bundler & plugin configuration
 ```
-
-The structure may evolve as new modules are introduced.
 
 ---
 
 ## 🚀 Getting Started
 
-### Requirements
-Install:
-- Node.js
-- npm
-- MongoDB / MongoDB Atlas
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [Rust & Cargo](https://rustup.rs/) (for Tauri 2 desktop builds)
 
-### Clone
+### Installation
 ```bash
+# Clone the repository
 git clone <repository-url>
-cd ai-prompt-library
-```
+cd "ai-prompt-library"
 
-### Install dependencies
-```bash
+# Install dependencies
 npm install
 ```
 
-### Environment Variables
-Create `.env.local` in the root:
-```ini
-MONGODB_URI=mongodb+srv://...
-JWT_SECRET=your_jwt_session_secret
-NEXT_PUBLIC_APP_NAME="AI Prompt Library"
-SQLITE_DB_PATH=./prompt-library.db
-```
-*Never commit `.env.local` to git.*
-
-### ▶️ Development
-Start the development server:
+### 💻 Running Development Server (Vite)
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### 🧪 Verification
-Before committing changes:
+### 🖥️ Running Desktop Application (Tauri 2)
 ```bash
-npx tsc --noEmit
-npm run lint
+npm run tauri dev
+```
+
+### 🔨 Building for Production
+```bash
+# Build the Vite frontend
 npm run build
+
+# Build the native desktop installer (Windows .exe / .msi)
+npm run tauri build
 ```
 
 ---
 
-## 🗺️ Development Roadmap
+## 🔒 Privacy & Local-First Guarantees
 
-### Phase 1 — Foundation
-- [x] Next.js 16 foundation
-- [x] TypeScript Configuration
-- [x] Tailwind CSS v4 CSS-first configuration
-- [x] MongoDB connection validation
-- [x] Authentication foundation (JOSE JWT + HTTP-only cookies)
-- [x] SQLite connection preparation (`better-sqlite3`)
-- [x] Global responsive application shell
-- [x] Settings UI structure preparation
-- [x] Dark/Light Theme toggling system (no-reload)
-
-### Phase 2 — Prompt Library
-- [ ] Prompt CRUD
-- [ ] Prompt editor
-- [ ] Prompt viewer
-- [ ] Categories
-- [ ] Tags
-- [ ] Search
-- [ ] Filters
-- [ ] Favorites
-
-### Phase 3 — Prompt Engineering
-- [ ] Prompt versions
-- [ ] Master prompts
-- [ ] Templates
-- [ ] Variables
-- [ ] Prompt testing
-- [ ] Workflows
-
-### Phase 4 — Productivity
-- [ ] Projects
-- [ ] History
-- [ ] Advanced search
-- [ ] Usage statistics
-- [ ] Analytics
-
-### Phase 5 — Desktop Application
-- [ ] Electron application bundling
-- [ ] SQLite local storage implementation
-- [ ] Save Locally vs Save Online switching
-- [ ] Local ↔ Online synchronization
-- [ ] Offline-first workflows
-
-### Phase 6 — AI Integrations
-- [ ] OpenAI API Integration
-- [ ] Google Gemini API Integration
-- [ ] Anthropic Claude API Integration
-- [ ] Other AI providers
-
----
-
-## 🧱 Development Principles
-
-- **Keep the architecture simple**: Avoid unnecessary dependencies and infrastructure.
-- **Reuse existing components**: Create reusable components only when they provide genuine value.
-- **Centralize design tokens**: Do not hardcode colors throughout the application.
-- **Keep storage abstraction ready**: MongoDB is the current active data source. SQLite is reserved for future Electron local-only execution.
-- **Build incrementally**: Each major feature should be implemented, tested, and stabilized before moving to the next feature.
-- **Avoid premature complexity**: Do not introduce state managers (Redux, Zustand) or relational mapping (Prisma, PostgreSQL) unless a future requirement genuinely justifies it.
-
----
-
-## 🔒 Repository Safety
-
-The repository must never contain:
-- `.env`
-- `.env.local`
-- `*.db`
-- `*.db-shm`
-- `*.db-wal`
-- `node_modules`
-- `.next`
-
-Secrets, database credentials, session secrets, and local databases must remain outside version control.
-
----
-
-## 📌 Current Development Direction
-
-The immediate goal is not to build every feature at once. The current priority is:
-
-```text
-Stable Foundation
-       ↓
-Application Shell
-       ↓
-Settings & Theme System
-       ↓
-Prompt Library
-       ↓
-Prompt Engineering Tools
-       ↓
-Electron Desktop
-       ↓
-Local + Online Storage
-       ↓
-Synchronization
-       ↓
-AI Integrations
-```
-
----
-
-## 📄 Documentation
-
-Project documentation is maintained alongside the source code:
-- **[`AGENTS.md`](file:///e:/library/prompt-library/AGENTS.md)**: Agent rules and boundaries for AI coders.
-- **[`docs/architecture.md`](file:///e:/library/prompt-library/docs/architecture.md)**: Details of the Next.js, MongoDB, and SQLite setup.
-- **[`docs/design-system.md`](file:///e:/library/prompt-library/docs/design-system.md)**: Guide to theme colors, fonts, and responsive components.
-- **[`docs/development-rules.md`](file:///e:/library/prompt-library/docs/development-rules.md)**: Style guides, coding standards, and safety limits.
-- **[`docs/roadmap.md`](file:///e:/library/prompt-library/docs/roadmap.md)**: Phase tracking and incremental feature breakdowns.
+- **No Mandatory Cloud**: Operates completely offline without connecting to external telemetry or third-party servers.
+- **Your Data Stays Yours**: Prompts, categories, versions, and API keys are stored locally on your machine in embedded SQLite files.
+- **Direct AI Provider Calls**: When configured, AI requests connect directly from your machine to official provider APIs (Gemini, OpenAI, Anthropic) using your own API keys.
 
 ---
 
 ## 📜 License
 
-License information will be added before the project is publicly released.
-
----
-
-## 👨‍💻 Project
-
-**AI Prompt Library**
-
-A personal prompt engineering workspace built for long-term AI-assisted development and productivity. Built incrementally. Designed for thousands of prompts. Prepared for web and desktop.
+Private AI Prompt Workspace by **Bazi Studio**. All rights reserved.

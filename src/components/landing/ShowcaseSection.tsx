@@ -1,7 +1,4 @@
-"use client";
-
 import { useState } from "react";
-import Image from "next/image";
 import { BookOpen, LayoutDashboard, Workflow, ShieldCheck, Monitor } from "lucide-react";
 
 export function LandingShowcaseSection() {
@@ -109,11 +106,10 @@ export function LandingShowcaseSection() {
 
             {/* Real Screenshot */}
             <div className="relative aspect-[16/10] w-full bg-background overflow-hidden">
-              <Image
+              <img
                 src={currentTab.image}
                 alt={currentTab.title}
-                fill
-                className="object-cover object-top"
+                className="w-full h-full object-cover object-top"
               />
             </div>
           </div>

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { landingConfig } from "@/config/landingConfig";
 
@@ -22,7 +21,7 @@ export function LandingFooter() {
           <div className="space-y-3 max-w-sm">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center p-1">
-                <Image
+                <img
                   src="/images/logo.png"
                   alt="Bazi Studio AI Prompt Library"
                   width={24}
@@ -112,7 +111,7 @@ export function LandingFooter() {
                   </a>
                 </li>
                 <li>
-                  <Link href="/dashboard" className="hover:text-foreground transition-colors">
+                  <Link to="/dashboard" className="hover:text-foreground transition-colors">
                     Application Workspace
                   </Link>
                 </li>

@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   PlusCircle,
@@ -58,7 +56,7 @@ export function CommandPaletteModal({
   const [prompts, setPrompts] = useState<CommandPromptItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -97,7 +95,7 @@ export function CommandPaletteModal({
         icon: PlusCircle,
         badge: "Cmd+N",
         action: () => {
-          router.push("/prompts/new");
+          navigate("/prompts/new");
           onClose();
         },
       },
@@ -120,7 +118,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: Layers,
         action: () => {
-          router.push("/dashboard");
+          navigate("/dashboard");
           onClose();
         },
       },
@@ -131,7 +129,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: Workflow,
         action: () => {
-          router.push("/workflows");
+          navigate("/workflows");
           onClose();
         },
       },
@@ -142,7 +140,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: Swords,
         action: () => {
-          router.push("/arena");
+          navigate("/arena");
           onClose();
         },
       },
@@ -153,7 +151,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: FolderTree,
         action: () => {
-          router.push("/categories");
+          navigate("/categories");
           onClose();
         },
       },
@@ -164,7 +162,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: BarChart3,
         action: () => {
-          router.push("/dashboard");
+          navigate("/dashboard");
           onClose();
         },
       },
@@ -175,7 +173,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: HardDrive,
         action: () => {
-          router.push("/settings?tab=storage");
+          navigate("/settings?tab=storage");
           onClose();
         },
       },
@@ -186,7 +184,7 @@ export function CommandPaletteModal({
         category: "navigation",
         icon: Settings,
         action: () => {
-          router.push("/settings");
+          navigate("/settings");
           onClose();
         },
       },
@@ -223,7 +221,7 @@ export function CommandPaletteModal({
       icon: FileText,
       badge: p.tags?.length ? `#${p.tags[0]}` : undefined,
       action: () => {
-        router.push(`/prompts/${p.id}`);
+        navigate(`/prompts/${p.id}`);
         onClose();
       },
     }));
@@ -240,7 +238,7 @@ export function CommandPaletteModal({
       const matchSubtitle = item.subtitle ? item.subtitle.toLowerCase().includes(q) : false;
       return matchTitle || matchSubtitle;
     });
-  }, [query, prompts, theme, router, onClose, onOpenQuickCapture, onOpenShortcuts, setTheme]);
+  }, [query, prompts, theme, navigate, onClose, onOpenQuickCapture, onOpenShortcuts, setTheme]);
 
   // Adjust selection bounds when items change
   useEffect(() => {

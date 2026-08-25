@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   Folder,
   Layers,
@@ -16,9 +14,9 @@ import { ProjectItem, fetchProjects, deleteProject } from "@/services/projects/p
 import { ProjectModal } from "./ProjectModal";
 
 function WorkspaceSwitcherContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
   const activeProjectId = searchParams.get("projectId") || "";
 
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -62,7 +60,7 @@ function WorkspaceSwitcherContent() {
       params.delete("projectId");
     }
     const target = pathname.startsWith("/prompts") ? pathname : "/prompts";
-    router.push(`${target}?${params.toString()}`);
+    navigate(`${target}?${params.toString()}`);
   };
 
   const handleOpenCreateModal = (e: React.MouseEvent) => {

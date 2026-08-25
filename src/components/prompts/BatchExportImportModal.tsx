@@ -1,7 +1,5 @@
-"use client";
-
 import React, { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import {
   Download,
   Upload,
@@ -294,7 +292,7 @@ export function BatchExportImportModal({
                 </button>
 
                 <Link
-                  href="/settings"
+                  to="/settings"
                   onClick={onClose}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs transition-colors"
                 >

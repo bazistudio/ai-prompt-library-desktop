@@ -1,8 +1,5 @@
-"use client";
-
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -19,8 +16,8 @@ import {
 import { fetchPrompts, toggleFavorite, PromptItem } from "@/services/prompts/promptService";
 
 function PromptsLibraryContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const activeCategory = searchParams.get("category") || "All";
   const activeProjectId = searchParams.get("projectId") || "";
   const isFavoriteOnly = searchParams.get("favorite") === "true";
@@ -95,7 +92,7 @@ function PromptsLibraryContent() {
         </div>
 
         <Link
-          href="/prompts/new"
+          to="/prompts/new"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary shrink-0"
         >
           <Plus className="h-4 w-4" />
@@ -168,7 +165,7 @@ function PromptsLibraryContent() {
             </p>
           </div>
           <Link
-            href="/prompts/new"
+            to="/prompts/new"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md shadow-primary"
           >
             <Plus className="h-4 w-4" />
@@ -180,7 +177,7 @@ function PromptsLibraryContent() {
           {prompts.map((prompt) => (
             <div
               key={prompt.id}
-              onClick={() => router.push(`/prompts/${prompt.id}`)}
+              onClick={() => navigate(`/prompts/${prompt.id}`)}
               className="glass-card p-5 rounded-2xl border border-border hover:border-primary/50 transition-all flex flex-col justify-between gap-4 cursor-pointer bg-card group relative"
             >
               {/* Header */}
@@ -280,7 +277,7 @@ function PromptsLibraryContent() {
           {prompts.map((prompt) => (
             <div
               key={prompt.id}
-              onClick={() => router.push(`/prompts/${prompt.id}`)}
+              onClick={() => navigate(`/prompts/${prompt.id}`)}
               className="glass-card p-4 rounded-xl border border-border hover:border-primary/50 transition-all flex items-center justify-between gap-4 cursor-pointer bg-card group"
             >
               <div className="flex items-center gap-4 flex-1 min-w-0">

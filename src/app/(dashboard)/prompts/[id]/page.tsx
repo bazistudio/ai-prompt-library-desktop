@@ -1,8 +1,5 @@
-"use client";
-
-import { useState, useEffect, use, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ArrowLeft,
   Copy,
@@ -38,9 +35,9 @@ import { TemplateVariableRunner } from "@/components/prompts/TemplateVariableRun
 import { AIPlaygroundRunner } from "@/components/prompts/AIPlaygroundRunner";
 import { AIEnhanceModal } from "@/components/modals/AIEnhanceModal";
 
-export default function PromptDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const router = useRouter();
+export default function PromptDetailPage() {
+  const { id = "" } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [prompt, setPrompt] = useState<PromptItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,7 +162,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
     if (confirm(`Are you sure you want to delete "${prompt.title}"?`)) {
       try {
         await deletePrompt(prompt.id);
-        router.push("/prompts");
+        navigate("/prompts");
       } catch (err) {
         console.error(err);
       }
@@ -264,7 +261,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
         <h2 className="text-xl font-bold text-foreground">Prompt Not Found</h2>
         <p className="text-xs text-muted-foreground">{error || "Prompt does not exist in local database."}</p>
         <Link
-          href="/prompts"
+          to="/prompts"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -281,7 +278,7 @@ export default function PromptDetailPage({ params }: { params: Promise<{ id: str
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between">
         <Link
-          href="/prompts"
+          to="/prompts"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />

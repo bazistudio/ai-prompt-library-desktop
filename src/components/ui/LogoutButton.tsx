@@ -1,11 +1,9 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { LogOut, Lock, Loader2 } from "lucide-react";
 
 export function LogoutButton() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isElectron, setIsElectron] = useState(false);
 
@@ -26,8 +24,7 @@ export function LogoutButton() {
           method: "POST",
         });
         if (response.ok) {
-          router.push("/login");
-          router.refresh();
+          navigate("/login");
         }
       }
     } catch (err) {

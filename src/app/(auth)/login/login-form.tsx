@@ -1,14 +1,11 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Terminal, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { loginSchema } from "@/lib/validation/auth";
 
 export default function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -47,8 +44,7 @@ export default function LoginForm() {
           setError(data.message || "Invalid credentials. Please try again.");
         }
       } else {
-        router.push(redirect);
-        router.refresh();
+        navigate(redirect);
       }
     } catch (err) {
       console.error(err);
@@ -156,7 +152,7 @@ export default function LoginForm() {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
-              href="/register"
+              to="/register"
               className="font-medium text-foreground hover:text-primary-hover transition-colors underline"
             >
               Sign up

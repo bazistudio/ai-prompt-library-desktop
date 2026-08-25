@@ -1,8 +1,6 @@
-"use client";
-
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
@@ -15,7 +13,7 @@ import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsMod
 
 interface AppShellProps {
   children: React.ReactNode;
-  session: {
+  session?: {
     username: string;
     email: string;
   };
@@ -27,7 +25,7 @@ export function AppShell({ children, session }: AppShellProps) {
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const username = session?.username || "Developer";
   const email = session?.email || "developer@example.com";
@@ -79,7 +77,7 @@ export function AppShell({ children, session }: AppShellProps) {
     const unsubNavigate = api.onMenuNavigate?.((path: string) => {
       console.log("[AppShell] Native menu navigation:", path);
       if (path) {
-        router.push(path);
+        navigate(path);
       }
     });
 
@@ -118,7 +116,7 @@ export function AppShell({ children, session }: AppShellProps) {
       unsubPalette?.();
       unsubShortcuts?.();
     };
-  }, [router]);
+  }, [navigate]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -173,7 +171,7 @@ export function AppShell({ children, session }: AppShellProps) {
         isOpen={quickCaptureOpen}
         onClose={() => setQuickCaptureOpen(false)}
         onSuccess={(promptId) => {
-          router.push(`/prompts/${promptId}`);
+          navigate(`/prompts/${promptId}`);
         }}
       />
 

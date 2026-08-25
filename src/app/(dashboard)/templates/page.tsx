@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import {
   FolderKanban,
   GraduationCap,
@@ -450,7 +448,7 @@ Deploy Iteration 2 to production template library.
 ];
 
 export default function TemplateLibraryPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [previewTemplate, setPreviewTemplate] = useState<BuiltinTemplate | null>(null);
@@ -481,7 +479,7 @@ export default function TemplateLibraryPage() {
         })
       );
     }
-    router.push("/prompts/new?fromTemplate=true");
+    navigate("/prompts/new?fromTemplate=true");
   };
 
   const handleCopyContent = (content: string) => {

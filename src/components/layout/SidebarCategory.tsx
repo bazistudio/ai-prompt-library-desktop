@@ -1,8 +1,5 @@
-"use client";
-
 import { useState, useEffect, useCallback, Suspense } from "react";
-import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Library,
@@ -18,9 +15,9 @@ import { CategoryModal } from "@/components/categories/CategoryModal";
 import { WorkspaceSwitcher } from "@/components/workspaces/WorkspaceSwitcher";
 
 function SidebarCategoryContent() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const activeCategory = searchParams.get("category") || "";
   const isFavorites = searchParams.get("favorite") === "true";
 
@@ -59,7 +56,7 @@ function SidebarCategoryContent() {
     loadCategories();
     // If active category was renamed, update search param cleanly
     if (categoryToEdit && activeCategory === categoryToEdit.name) {
-      router.push(`/prompts?category=${encodeURIComponent(savedCat.name)}`);
+      navigate(`/prompts?category=${encodeURIComponent(savedCat.name)}`);
     }
   };
 
@@ -71,7 +68,7 @@ function SidebarCategoryContent() {
           Core Studio
         </span>
         <Link
-          href="/dashboard"
+          to="/dashboard"
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname === "/dashboard"
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -82,7 +79,7 @@ function SidebarCategoryContent() {
           <span>Dashboard</span>
         </Link>
         <Link
-          href="/prompts"
+          to="/prompts"
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname === "/prompts" && !isFavorites && !activeCategory
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -93,7 +90,7 @@ function SidebarCategoryContent() {
           <span>My Library</span>
         </Link>
         <Link
-          href="/workflows"
+          to="/workflows"
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             pathname.startsWith("/workflows")
               ? "bg-primary text-primary-foreground font-bold shadow-sm"
@@ -107,7 +104,7 @@ function SidebarCategoryContent() {
           </span>
         </Link>
         <Link
-          href="/prompts?favorite=true"
+          to="/prompts?favorite=true"
           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
             isFavorites
               ? "bg-accent/20 text-accent font-bold"
@@ -141,7 +138,7 @@ function SidebarCategoryContent() {
         <div className="space-y-0.5">
           {/* All Filter */}
           <Link
-            href="/prompts"
+            to="/prompts"
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
               pathname === "/prompts" && !activeCategory && !isFavorites
                 ? "bg-secondary text-foreground font-bold"
@@ -162,7 +159,7 @@ function SidebarCategoryContent() {
             return (
               <div key={cat.id} className="group relative flex items-center">
                 <Link
-                  href={targetUrl}
+                  to={targetUrl}
                   className={`flex-1 flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
                     isCatActive
                       ? "bg-secondary text-foreground font-bold"

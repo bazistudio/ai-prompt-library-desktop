@@ -13,14 +13,16 @@
 # testing
 /coverage
 
-# next.js & build outputs
+# build outputs
 /.next/
 /out/
 /dist/
 /target/
-/build/
+/src-tauri/target/
 /dist-electron/
 /release/
+/build/*
+!/build/icon.ico
 
 # misc & IDEs
 .DS_Store

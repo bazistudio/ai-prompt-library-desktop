@@ -1,12 +1,9 @@
-"use client";
-
 import React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router-dom";
 import { Shield, LayoutDashboard, Users, Settings, LogOut, ArrowLeft } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   // Simple layout switch for login/unauthorized pages where we don't want the sidebar
   if (pathname.includes("/admin/login") || pathname.includes("/admin/unauthorized")) {
@@ -24,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           <Link
-            href="/admin/dashboard"
+            to="/admin/dashboard"
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               pathname === "/admin/dashboard"
                 ? "bg-primary/10 text-primary"
@@ -35,7 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             Dashboard
           </Link>
           <Link
-            href="/admin/users"
+            to="/admin/users"
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               pathname === "/admin/users"
                 ? "bg-primary/10 text-primary"
@@ -46,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             Users & Roles
           </Link>
           <Link
-            href="/admin/settings"
+            to="/admin/settings"
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               pathname === "/admin/settings"
                 ? "bg-primary/10 text-primary"
@@ -60,14 +57,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-4 border-t border-border space-y-2">
           <Link
-            href="/dashboard"
+            to="/dashboard"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Exit Admin
           </Link>
           <Link
-            href="/admin/login"
+            to="/admin/login"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-4 w-4" />

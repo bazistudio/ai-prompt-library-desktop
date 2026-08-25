@@ -1,6 +1,3 @@
-"use client";
-
-import Image from "next/image";
 import { Sparkles, ArrowRight, Monitor, CheckCircle2 } from "lucide-react";
 import { landingConfig } from "@/config/landingConfig";
 
@@ -98,12 +95,10 @@ export function LandingHero() {
 
             {/* Application Screenshot */}
             <div className="relative aspect-[16/10] w-full bg-background overflow-hidden">
-              <Image
+              <img
                 src="/images/screenshots/dashboard.png"
                 alt="AI Prompt Library Real Application Dashboard Showcase"
-                fill
-                className="object-cover object-top"
-                priority
+                className="w-full h-full object-cover object-top"
               />
             </div>
           </div>

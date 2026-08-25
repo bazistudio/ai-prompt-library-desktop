@@ -1,6 +1,4 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu, PlusCircle, Zap } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { LogoutButton } from "@/components/ui/LogoutButton";
@@ -30,7 +28,7 @@ export function Navbar({ onMenuToggle, onQuickCapture, onOpenCommandPalette, use
         </button>
 
         {/* Brand Logo & Title */}
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link to="/dashboard" className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary">
             <Terminal className="h-4.5 w-4.5 text-primary-foreground" />
           </div>
@@ -44,7 +42,7 @@ export function Navbar({ onMenuToggle, onQuickCapture, onOpenCommandPalette, use
 
         {/* Navigation Link */}
         <Link
-          href="/dashboard"
+          to="/dashboard"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <Home className="h-3.5 w-3.5" />
@@ -85,7 +83,7 @@ export function Navbar({ onMenuToggle, onQuickCapture, onOpenCommandPalette, use
 
         {/* New Prompt Button */}
         <Link
-          href="/prompts/new"
+          to="/prompts/new"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
         >
           <PlusCircle className="h-4 w-4" />

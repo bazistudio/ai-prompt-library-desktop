@@ -1,10 +1,5 @@
-"use client";
-
-export const dynamic = "force-dynamic";
-
 import { useState, useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Save, Loader2, Tag, Folder, Sparkles, Layers } from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
@@ -15,7 +10,7 @@ import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { TextDirection } from "@/components/editor/languageDetector";
 
 function CreatePromptContent() {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -72,7 +67,7 @@ function CreatePromptContent() {
       });
 
       if (res.success && res.promptId) {
-        router.push(`/prompts/${res.promptId}`);
+        navigate(`/prompts/${res.promptId}`);
       }
     } catch (err: any) {
       console.error("Create prompt error:", err);
@@ -116,7 +111,7 @@ function CreatePromptContent() {
       {/* Top Header Navigation */}
       <div className="flex items-center justify-between">
         <Link
-          href="/prompts"
+          to="/prompts"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -249,7 +244,7 @@ function CreatePromptContent() {
         {/* Action Bar */}
         <div className="flex items-center justify-end gap-3">
           <Link
-            href="/prompts"
+            to="/prompts"
             className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             Cancel

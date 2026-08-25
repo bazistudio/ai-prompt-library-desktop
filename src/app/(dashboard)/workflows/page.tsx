@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import {
   fetchWorkflows,
   createWorkflow,
@@ -185,7 +183,7 @@ export default function WorkflowsPage() {
           {filteredWorkflows.map((wf) => (
             <Link
               key={wf.id}
-              href={`/workflows/${wf.id}`}
+              to={`/workflows/${wf.id}`}
               className="glass-card p-5 rounded-2xl border border-border bg-card hover:border-primary/50 transition-all group flex flex-col justify-between space-y-4 hover:shadow-lg"
             >
               <div className="space-y-3">
