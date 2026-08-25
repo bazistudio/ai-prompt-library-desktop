@@ -11,7 +11,7 @@ interface AboutModalProps {
 
 export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalProps) {
   const [appInfo, setAppInfo] = useState<{ version: string; platform: string; arch: string }>({
-    version: "1.0.1",
+    version: "1.0.2",
     platform: "win32",
     arch: "x64",
   });
