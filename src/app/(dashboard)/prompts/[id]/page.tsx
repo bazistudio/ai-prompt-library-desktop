@@ -471,58 +471,13 @@ export default function PromptDetailPage() {
         </div>
       )}
 
-      {/* Workbench Tab Selector & Interactive Runners */}
+      {/* Interactive Template Variable Runner (Rendered when template variables exist) */}
       {!isEditing && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-2">
-            <button
-              onClick={() => setActiveWorkbenchTab("ai")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeWorkbenchTab === "ai"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>AI Live Playground</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded-full font-mono bg-background/20">
-                Phase 6
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveWorkbenchTab("runner")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeWorkbenchTab === "runner"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              <FileCode className="h-3.5 w-3.5" />
-              <span>Template Variable Runner</span>
-            </button>
-          </div>
-
-          {activeWorkbenchTab === "ai" ? (
-            <AIPlaygroundRunner
-              promptId={prompt.id}
-              promptTitle={prompt.title}
-              rawContent={activeVersion?.content || editedContent}
-              renderedContent={activeVersion?.content || editedContent}
-              onSaveAsVersion={async (output) => {
-                setEditedContent(output);
-                setChangeSummary("AI Generated Output / Variation");
-                setIsEditing(true);
-              }}
-            />
-          ) : (
-            <TemplateVariableRunner
-              promptId={prompt.id}
-              promptTitle={prompt.title}
-              content={activeVersion?.content || editedContent}
-            />
-          )}
-        </div>
+        <TemplateVariableRunner
+          promptId={prompt.id}
+          promptTitle={prompt.title}
+          content={activeVersion?.content || editedContent}
+        />
       )}
 
       {/* Prompt Instructions Content & Editor */}
