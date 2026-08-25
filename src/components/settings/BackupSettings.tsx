@@ -43,7 +43,12 @@ function formatBytes(bytes: number) {
 }
 
 export function BackupSettings() {
-  const [backupPath, setBackupPath] = useState<string>("D:\\AI Prompt Backups");
+  const [backupPath, setBackupPath] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ai_prompt_library_backup_path") || "";
+    }
+    return "";
+  });
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
   const [frequency, setFrequency] = useState("daily");
   const [retentionCount, setRetentionCount] = useState("7");
@@ -75,10 +80,14 @@ export function BackupSettings() {
   };
 
   useEffect(() => {
-    // Fetch default storage path as fallback
+    // Fetch default storage path as fallback if not set
     getStoragePath().then((path) => {
       if (path && !backupPath) {
-        setBackupPath(`${path}\\Backups`);
+        const defaultBackups = `${path}\\Backups`;
+        setBackupPath(defaultBackups);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ai_prompt_library_backup_path", defaultBackups);
+        }
       }
     });
 
@@ -92,6 +101,9 @@ export function BackupSettings() {
           setRetentionCount(data.settings.retentionCount);
           if (data.settings.backupPath) {
             setBackupPath(data.settings.backupPath);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("ai_prompt_library_backup_path", data.settings.backupPath);
+            }
           }
         }
       })
@@ -121,6 +133,9 @@ export function BackupSettings() {
       if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
         const newPath = res.filePaths[0];
         setBackupPath(newPath);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ai_prompt_library_backup_path", newPath);
+        }
         saveSetting("backupPath", newPath);
         setMessage({ type: "success", text: `Backup folder updated to: ${newPath}` });
       }
@@ -134,7 +149,7 @@ export function BackupSettings() {
   const handleOpenFolder = async () => {
     const res = await openStorageFolder();
     if (!res.success) {
-      setMessage({ type: "info", text: "Opened default local storage folder." });
+      setMessage({ type: "info", text: "Opened storage folder in file manager." });
     }
   };
 
@@ -171,15 +186,14 @@ export function BackupSettings() {
     setRestoring(true);
     setMessage(null);
 
-    // B2-A: Safely report that the actual Restore Engine is pending B2-D
     setTimeout(() => {
       setRestoring(false);
       setSelectedBackupToRestore(null);
       setMessage({
         type: "info",
-        text: `ZIP Archive restore pipeline with integrity verification is scheduled for Phase B2-D.`,
+        text: `ZIP Archive restore pipeline with integrity verification is scheduled for a future release.`,
       });
-    }, 1200);
+    }, 1000);
   };
 
   return (
