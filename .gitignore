@@ -27,6 +27,9 @@
 # misc & IDEs
 .DS_Store
 *.pem
+*.key
+*.pub
+tauri-signing.key
 .idea/
 .vscode/
 
