@@ -22,6 +22,8 @@ import AdminUsersPage from "@/app/(admin)/admin/users/page";
 import AdminSettingsPage from "@/app/(admin)/admin/settings/page";
 import AdminLoginPage from "@/app/(admin)/admin/login/page";
 import UnauthorizedPage from "@/app/(admin)/admin/unauthorized/page";
+import { useAutoUpdater } from "@/hooks/useAutoUpdater";
+import { UpdateNotificationModal } from "@/components/updater/UpdateNotificationModal";
 
 function DashboardLayoutWrapper() {
   return (
@@ -40,8 +42,11 @@ function AdminLayoutWrapper() {
 }
 
 export function App() {
+  const updater = useAutoUpdater();
+
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Landing Page */}
       <Route path="/" element={<Home />} />
 
@@ -76,6 +81,8 @@ export function App() {
       {/* Catch-all fallback */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    <UpdateNotificationModal updater={updater} />
+  </>
   );
 }
 
