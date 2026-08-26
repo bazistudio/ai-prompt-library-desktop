@@ -63,23 +63,36 @@ export function AboutSettings() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => updater.checkForUpdatesManual()}
-              disabled={isChecking || isDownloading || isInstalling}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-md shadow-primary/20 transition-all cursor-pointer disabled:opacity-60 whitespace-nowrap"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isChecking || isDownloading || isInstalling ? "animate-spin" : ""}`} />
-              <span>
-                {isChecking
-                  ? "Checking..."
-                  : isDownloading
-                  ? `Downloading (${updater.downloadProgress}%)`
-                  : isInstalling
-                  ? "Installing..."
-                  : "Check for Updates"}
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://github.com/bazistudio/ai-prompt-library-desktop/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                title="Open GitHub Releases page in browser"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>GitHub Releases</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => updater.checkForUpdatesManual()}
+                disabled={isChecking || isDownloading || isInstalling}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-md shadow-primary/20 transition-all cursor-pointer disabled:opacity-60 whitespace-nowrap"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isChecking || isDownloading || isInstalling ? "animate-spin" : ""}`} />
+                <span>
+                  {isChecking
+                    ? "Checking..."
+                    : isDownloading
+                    ? `Downloading (${updater.downloadProgress}%)`
+                    : isInstalling
+                    ? "Installing..."
+                    : "Check for Updates"}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Live Download Progress Bar */}
