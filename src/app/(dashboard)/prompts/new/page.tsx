@@ -10,8 +10,8 @@ import {
   Layers,
   FileEdit,
   CheckCircle2,
-  AlignLeft,
   BookOpen,
+  ChevronDown,
 } from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
@@ -55,7 +55,6 @@ function CreatePromptContent() {
 
   // Load existing draft if present, and fetch dynamic metadata
   useEffect(() => {
-    // 1. Check in-memory draft store
     const draft = promptDraftStore.getDraft();
     if (draft && draft.content) {
       setContent(draft.content);
@@ -68,7 +67,6 @@ function CreatePromptContent() {
       if (draft.tags && Array.isArray(draft.tags)) setTagsInput(draft.tags.join(", "));
     }
 
-    // 2. Fetch categories & projects
     Promise.all([fetchCategories(), fetchProjects()])
       .then(([cats, projs]) => {
         setCategories(cats);
@@ -169,7 +167,6 @@ function CreatePromptContent() {
       });
 
       if (res.success && res.promptId) {
-        // Clear temporary in-memory draft upon successful atomic save
         promptDraftStore.clearDraft();
         navigate(`/prompts/${res.promptId}`);
       } else {
@@ -197,7 +194,6 @@ function CreatePromptContent() {
     try {
       const storagePath = await getStoragePath();
       if (!storagePath) {
-        // First-use storage check before final disk writing
         setIsFirstUseModalOpen(true);
         return;
       }
@@ -213,66 +209,76 @@ function CreatePromptContent() {
   };
 
   return (
-    <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6 text-left">
-      {/* Top Header & Step Progress Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="h-full w-full flex flex-col overflow-hidden px-4 sm:px-6 py-2.5 space-y-2 text-left">
+      {/* 1. TOP BAR: Category & Version Bar with Step Indicator & Stats */}
+      <div className="flex items-center justify-between gap-3 bg-card/70 backdrop-blur-sm border border-border/80 rounded-xl px-4 py-2 shrink-0 shadow-2xs">
+        {/* Left Side: Back / Category Pill / Version Badges */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
             onClick={step === 1 ? handleCancelClick : handleBackToEditor}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer mr-1"
+            title={step === 1 ? "Cancel & Return" : "Back to Editor"}
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>{step === 1 ? "Cancel & Return" : "Back to Editor"}</span>
           </button>
-        </div>
 
-        {/* Step Indicator Badges */}
-        <div className="flex items-center gap-2 text-xs">
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
-              step === 1
-                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            <FileEdit className="h-3.5 w-3.5" />
-            <span>1. Write Prompt</span>
+          {/* Dynamic Category Pill Dropdown */}
+          <div className="relative flex items-center">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary border border-primary/30 text-xs font-bold shadow-2xs">
+              <Folder className="h-3.5 w-3.5" />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="bg-transparent text-primary font-bold text-xs outline-none cursor-pointer pr-1"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name} className="bg-popover text-foreground">
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <span className="text-muted-foreground">→</span>
+          {/* Version Pills Bar (Mockup / Active version) */}
+          <div className="flex items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-2xs flex items-center gap-1">
+              <span>v1</span>
+              <span className="text-[10px] opacity-90 font-normal">current</span>
+            </span>
+          </div>
 
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
-              step === 2
-                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>2. Prompt Details</span>
+          {/* Step Progress Pill */}
+          <div className="hidden md:flex items-center gap-1.5 ml-2 pl-3 border-l border-border/50 text-xs text-muted-foreground">
+            <span className={step === 1 ? "font-bold text-foreground" : ""}>1. Write</span>
+            <span>→</span>
+            <span className={step === 2 ? "font-bold text-foreground" : ""}>2. Details</span>
+          </div>
+        </div>
+
+        {/* Right Side: Live Content Stats */}
+        <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground shrink-0">
+          <div className="flex items-center gap-2 bg-muted/50 border border-border/50 px-2.5 py-1 rounded-lg">
+            <span>{stats.words} words</span>
+            <span>•</span>
+            <span>{stats.characters} chars</span>
           </div>
         </div>
       </div>
 
       {/* Global Error Banner */}
       {error && (
-        <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold animate-in fade-in duration-200">
+        <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold shrink-0 animate-in fade-in duration-150">
           {error}
         </div>
       )}
 
-      {/* STEP 1: WRITE THE PROMPT (Distraction-Free) */}
+      {/* STEP 1: FULL-HEIGHT DISTRACTION-FREE WRITING AREA */}
       {step === 1 && (
-        <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Write Your Prompt</h1>
-            <p className="text-xs text-muted-foreground">
-              Draft or paste instructions in English, Urdu (اردو), Arabic, or any language. Use the rich markdown toolbar for lists, tables, and images.
-            </p>
-          </div>
-
-          <div className="glass-card p-6 rounded-2xl border border-border bg-card space-y-4 shadow-sm">
+        <div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden animate-in fade-in duration-150">
+          {/* Main Full-Height Editor */}
+          <div className="flex-1 min-h-0 w-full flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-xs">
             <RichMarkdownEditor
               value={content}
               onChange={setContent}
@@ -283,31 +289,17 @@ function CreatePromptContent() {
               }}
               direction={direction}
               onDirectionChange={setDirection}
-              placeholder="Write or paste your prompt instructions here..."
-              minHeight="min-h-[460px]"
+              placeholder="Write or paste your prompt here..."
+              className="flex-1 min-h-0 h-full border-0 rounded-none shadow-none"
             />
-
-            {/* Word & Character Count Pill Bar */}
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/40">
-              <div className="flex items-center gap-3 font-mono">
-                <span>{stats.words} words</span>
-                <span>•</span>
-                <span>{stats.characters} characters</span>
-                <span>•</span>
-                <span>{stats.lines} lines</span>
-              </div>
-              <span className="capitalize text-[10px] font-semibold px-2 py-0.5 rounded bg-muted">
-                {direction.toUpperCase()} Mode
-              </span>
-            </div>
           </div>
 
-          {/* Step 1 Action Bar */}
-          <div className="flex items-center justify-between pt-2">
+          {/* 2. CENTERED BOTTOM ACTION BAR (Step 1) */}
+          <div className="flex items-center justify-center gap-4 py-2 shrink-0">
             <button
               type="button"
               onClick={handleCancelClick}
-              className="px-5 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              className="px-6 py-2 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-all cursor-pointer shadow-2xs hover:shadow-xs min-w-[120px]"
             >
               Cancel
             </button>
@@ -315,50 +307,42 @@ function CreatePromptContent() {
             <button
               type="button"
               onClick={handleContinueToDetails}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-8 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs transition-all shadow-md shadow-primary/25 cursor-pointer min-w-[150px]"
             >
-              <span>Continue</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Continue →</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: PROMPT DETAILS & METADATA (Organize & Classify) */}
+      {/* STEP 2: PROMPT DETAILS & METADATA (Single Screen Fits Cleanly) */}
       {step === 2 && (
-        <form onSubmit={handleDetailsSubmit} className="space-y-6 animate-in fade-in duration-200">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Prompt Details</h1>
-            <p className="text-xs text-muted-foreground">
-              Add metadata, categorize, and organize your prompt before saving it to your private library.
-            </p>
-          </div>
+        <form onSubmit={handleDetailsSubmit} className="flex-1 min-h-0 w-full flex flex-col overflow-hidden animate-in fade-in duration-150">
+          <div className="flex-1 min-h-0 w-full overflow-y-auto rounded-xl border border-border bg-card p-6 space-y-4 shadow-xs scrollbar-thin">
+            {/* Quick Content Summary Card */}
+            <div className="p-3.5 rounded-xl bg-secondary/40 border border-border flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="font-semibold text-foreground block">Prompt Content Confirmed</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {stats.words} words • {stats.characters} characters • {language.toUpperCase()} ({direction.toUpperCase()})
+                  </span>
+                </div>
+              </div>
 
-          {/* Quick Content Summary Card */}
-          <div className="p-4 rounded-xl bg-secondary/30 border border-border/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                <BookOpen className="h-4 w-4" />
-              </div>
-              <div>
-                <span className="font-semibold text-foreground block">Prompt Content Confirmed</span>
-                <span className="text-[11px] text-muted-foreground">
-                  {stats.words} words • {stats.characters} characters • {language.toUpperCase()}
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={handleBackToEditor}
+                className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+              >
+                Edit Content
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleBackToEditor}
-              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
-            >
-              Edit Content
-            </button>
-          </div>
-
-          <div className="glass-card p-6 rounded-2xl border border-border space-y-5 bg-card shadow-sm">
-            {/* Title (Required) */}
+            {/* Prompt Title (Required) */}
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">
                 Prompt Title <span className="text-destructive">*</span>
@@ -369,14 +353,13 @@ function CreatePromptContent() {
                 autoFocus
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Python Async Web Scraper, YouTube Script Generator, اردو مواد نگار..."
+                placeholder="e.g. YouTube Video Script Generator, Python Code Reviewer..."
                 className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
               />
             </div>
 
-            {/* Category & Workspace / Project Row */}
+            {/* Category & Workspace Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Category (Required) */}
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                   <Folder className="h-3.5 w-3.5 text-primary" />
@@ -395,7 +378,6 @@ function CreatePromptContent() {
                 </select>
               </div>
 
-              {/* Workspace / Project (Optional) */}
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5 text-primary" />
@@ -419,13 +401,13 @@ function CreatePromptContent() {
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                 <Tag className="h-3.5 w-3.5 text-primary" />
-                Tags (Comma separated, optional)
+                Tags (Comma separated)
               </label>
               <input
                 type="text"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="coding, python, marketing, ai"
+                placeholder="youtube, marketing, urdu, ai"
                 className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
               />
             </div>
@@ -445,12 +427,12 @@ function CreatePromptContent() {
             </div>
           </div>
 
-          {/* Step 2 Action Bar */}
-          <div className="flex items-center justify-between pt-2">
+          {/* 2. CENTERED BOTTOM ACTION BAR (Step 2) */}
+          <div className="flex items-center justify-center gap-4 py-2 shrink-0">
             <button
               type="button"
               onClick={handleBackToEditor}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-all cursor-pointer min-w-[120px]"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Back</span>
@@ -459,7 +441,7 @@ function CreatePromptContent() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 px-7 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-8 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs transition-all shadow-md shadow-primary/25 cursor-pointer disabled:opacity-50 min-w-[160px]"
             >
               {saving ? (
                 <>
@@ -469,7 +451,7 @@ function CreatePromptContent() {
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Create Prompt</span>
+                  <span>Save Prompt (v1)</span>
                 </>
               )}
             </button>
@@ -497,7 +479,7 @@ function CreatePromptContent() {
 
 export default function CreatePromptPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-muted-foreground text-sm">Loading editor...</div>}>
+    <Suspense fallback={<div className="h-full flex items-center justify-center text-muted-foreground text-xs">Loading editor...</div>}>
       <CreatePromptContent />
     </Suspense>
   );
