@@ -20,88 +20,143 @@ export interface AutoUpdaterState {
   downloadProgress: number; // 0 to 100
   isModalOpen: boolean;
   error: string | null;
+  manualMessage: string | null;
+  isManualChecking: boolean;
   dismissModal: () => void;
   installNow: () => Promise<void>;
+  checkForUpdatesManual: () => Promise<void>;
 }
 
 export function useAutoUpdater(): AutoUpdaterState {
   const [status, setStatus] = useState<UpdaterStatus>("idle");
-  const [currentVersion, setCurrentVersion] = useState<string>("1.0.2");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.0.5");
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [manualMessage, setManualMessage] = useState<string | null>(null);
+  const [isManualChecking, setIsManualChecking] = useState<boolean>(false);
 
   const hasCheckedRef = useRef(false);
   const isTauri = updaterService.isTauriRuntime();
 
-  // Startup silent update check & background download
+  // Initialize version on mount
+  useEffect(() => {
+    if (isTauri) {
+      updaterService.getCurrentAppVersion().then((ver) => {
+        if (ver) setCurrentVersion(ver);
+      });
+    }
+  }, [isTauri]);
+
+  const executeUpdateCheck = useCallback(async (isManual: boolean = false) => {
+    if (!isTauri) {
+      if (isManual) {
+        setManualMessage("Updates are only available in the installed desktop application.");
+      }
+      return;
+    }
+
+    if (isManual) {
+      setIsManualChecking(true);
+      setManualMessage("Checking for updates from GitHub Releases...");
+      setError(null);
+    }
+
+    setStatus("checking");
+
+    // Timeout safety: 60 seconds search timeout
+    const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+      setTimeout(() => resolve({ timeout: true }), 60000)
+    );
+
+    try {
+      const checkPromise = updaterService.checkForUpdate();
+      const result = await Promise.race([checkPromise, timeoutPromise]);
+
+      if (result && "timeout" in result) {
+        setStatus("up-to-date");
+        setIsManualChecking(false);
+        setManualMessage(`Search timed out. You are currently on v${currentVersion}.`);
+        return;
+      }
+
+      const updateInfo = result;
+
+      if (!updateInfo || !updateInfo.available || !updateInfo.version) {
+        setStatus("up-to-date");
+        setIsManualChecking(false);
+        if (isManual) {
+          setManualMessage(`Your application is already up to date (v${currentVersion}).`);
+        }
+        return;
+      }
+
+      // Update is available
+      const nextVersion = updateInfo.version;
+      setStatus("available");
+      setAvailableVersion(nextVersion);
+      if (updateInfo.body) {
+        setReleaseNotes(updateInfo.body);
+      }
+      if (isManual) {
+        setManualMessage(`New update available: v${nextVersion}. Starting download...`);
+      }
+
+      // Begin background download with percentage progress
+      setStatus("downloading");
+      setDownloadProgress(10); // Start at 10%
+      const success = await updaterService.downloadUpdate((downloaded, total) => {
+        if (total && total > 0) {
+          const rawPct = Math.round((downloaded / total) * 100);
+          const pct = Math.max(10, Math.min(100, rawPct));
+          setDownloadProgress(pct);
+        }
+      });
+
+      setIsManualChecking(false);
+
+      if (success) {
+        setStatus("downloaded");
+        setDownloadProgress(100);
+        setIsModalOpen(true);
+        if (isManual) {
+          setManualMessage(`Update v${nextVersion} downloaded successfully. Ready to install!`);
+        }
+      } else {
+        setStatus("error");
+        setError("Failed to download update package.");
+        if (isManual) {
+          setManualMessage("Failed to download the update.");
+        }
+      }
+    } catch (err) {
+      setIsManualChecking(false);
+      setStatus("error");
+      const msg = err instanceof Error ? err.message : "Update check failed";
+      setError(msg);
+      if (isManual) {
+        setManualMessage(`Error checking for updates: ${msg}`);
+      }
+    }
+  }, [isTauri, currentVersion]);
+
+  // Startup silent update check (runs once 2s after startup)
   useEffect(() => {
     if (!isTauri || hasCheckedRef.current) return;
     hasCheckedRef.current = true;
 
-    let isMounted = true;
-
-    async function runUpdateFlow() {
-      try {
-        const installedVer = await updaterService.getCurrentAppVersion();
-        if (isMounted) setCurrentVersion(installedVer);
-
-        if (isMounted) setStatus("checking");
-        const updateInfo = await updaterService.checkForUpdate();
-
-        if (!isMounted) return;
-
-        if (!updateInfo || !updateInfo.available || !updateInfo.version) {
-          setStatus("up-to-date");
-          return;
-        }
-
-        // Update is available
-        setStatus("available");
-        setAvailableVersion(updateInfo.version);
-        if (updateInfo.body) {
-          setReleaseNotes(updateInfo.body);
-        }
-
-        // Begin silent background download
-        setStatus("downloading");
-        const success = await updaterService.downloadUpdate((downloaded, total) => {
-          if (!isMounted) return;
-          if (total && total > 0) {
-            const pct = Math.min(100, Math.round((downloaded / total) * 100));
-            setDownloadProgress(pct);
-          }
-        });
-
-        if (!isMounted) return;
-
-        if (success) {
-          setStatus("downloaded");
-          setDownloadProgress(100);
-          setIsModalOpen(true);
-        } else {
-          setStatus("error");
-          setError("Failed to download background update");
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        setStatus("error");
-        setError(err instanceof Error ? err.message : "Update check failed");
-      }
-    }
-
-    // Delay by 2 seconds after mount to ensure UI renders smoothly without startup lag
     const timer = setTimeout(() => {
-      runUpdateFlow();
-    }, 2000);
+      executeUpdateCheck(false);
+    }, 2500);
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [isTauri]);
+    return () => clearTimeout(timer);
+  }, [isTauri, executeUpdateCheck]);
+
+  const checkForUpdatesManual = useCallback(async () => {
+    await executeUpdateCheck(true);
+  }, [executeUpdateCheck]);
 
   const dismissModal = useCallback(() => {
     setIsModalOpen(false);
@@ -127,7 +182,11 @@ export function useAutoUpdater(): AutoUpdaterState {
     downloadProgress,
     isModalOpen,
     error,
+    manualMessage,
+    isManualChecking,
     dismissModal,
     installNow,
+    checkForUpdatesManual,
   };
 }
+

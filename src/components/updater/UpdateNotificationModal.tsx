@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, ArrowRight, X, RefreshCw } from "lucide-react";
+import { Sparkles, ArrowRight, X, RefreshCw, CheckCircle2 } from "lucide-react";
 import { AutoUpdaterState } from "@/hooks/useAutoUpdater";
 
 interface UpdateNotificationModalProps {
@@ -29,7 +29,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
               Update Ready to Install
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              A new version of AI Prompt Library is downloaded.
+              AI Prompt Library v{updater.availableVersion} has been downloaded.
             </p>
           </div>
         </div>
@@ -37,7 +37,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
         <button
           onClick={updater.dismissModal}
           disabled={isInstalling}
-          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50 cursor-pointer"
           title="Dismiss"
           aria-label="Dismiss notification"
         >
@@ -48,7 +48,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
       {/* Version Comparison Card */}
       <div className="mt-4 p-3 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between text-xs">
         <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Current</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">Installed</span>
           <span className="font-mono font-medium text-foreground">v{updater.currentVersion}</span>
         </div>
         <div className="flex items-center text-primary px-2">
@@ -57,6 +57,19 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
         <div className="flex flex-col items-end">
           <span className="text-[10px] text-primary uppercase font-semibold tracking-wider">New Ready</span>
           <span className="font-mono font-bold text-primary">v{updater.availableVersion}</span>
+        </div>
+      </div>
+
+      {/* Download Completion Bar */}
+      <div className="mt-3 space-y-1">
+        <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+          <span className="flex items-center gap-1 text-emerald-500 font-semibold">
+            <CheckCircle2 className="h-3 w-3" /> Download Complete
+          </span>
+          <span>100%</span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-emerald-500 rounded-full transition-all duration-300 w-full" />
         </div>
       </div>
 
@@ -74,8 +87,9 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
           onClick={updater.dismissModal}
           disabled={isInstalling}
           className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-border bg-background hover:bg-muted text-foreground transition-all cursor-pointer disabled:opacity-50"
+          title="Install on Next Launch"
         >
-          Later
+          Install on Next Launch
         </button>
 
         <button
@@ -92,7 +106,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
           ) : (
             <>
               <RefreshCw className="h-3.5 w-3.5" />
-              <span>Restart & Install</span>
+              <span>Install Now</span>
             </>
           )}
         </button>
@@ -100,3 +114,4 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
     </div>
   );
 };
+
