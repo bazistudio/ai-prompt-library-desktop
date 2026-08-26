@@ -36,5 +36,13 @@
         "installMode": "currentUser"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "SET_SIGNING_PUBLIC_KEY_HERE",
+      "endpoints": [
+        "https://github.com/bazistudio/ai-prompt-library/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
