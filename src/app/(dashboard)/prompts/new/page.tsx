@@ -1,25 +1,47 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Save, Loader2, Tag, Folder, Sparkles, Layers } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Tag,
+  Folder,
+  Sparkles,
+  Layers,
+  FileEdit,
+  CheckCircle2,
+  AlignLeft,
+  BookOpen,
+} from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
 import { ProjectItem, fetchProjects } from "@/services/projects/projectService";
 import { getStoragePath } from "@/services/storage/storageService";
+import { promptDraftStore } from "@/services/prompts/promptDraftStore";
 import { FirstUseStorageModal } from "@/components/storage/FirstUseStorageModal";
+import { CancelDraftModal } from "@/components/modals/CancelDraftModal";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { TextDirection } from "@/components/editor/languageDetector";
 
 function CreatePromptContent() {
   const navigate = useNavigate();
 
+  // Multi-step Flow State: Step 1 (Write) -> Step 2 (Details)
+  const [step, setStep] = useState<1 | 2>(1);
+
+  // Core Prompt Content (Step 1)
+  const [content, setContent] = useState("");
+  const [language, setLanguage] = useState("en");
+  const [direction, setDirection] = useState<TextDirection>("ltr");
+
+  // Metadata Fields (Step 2)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Coding");
   const [projectId, setProjectId] = useState("proj_default");
   const [tagsInput, setTagsInput] = useState("");
-  const [content, setContent] = useState("");
-  const [language, setLanguage] = useState("en");
-  const [direction, setDirection] = useState<TextDirection>("ltr");
+
+  // Loading & Error States
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,25 +49,104 @@ function CreatePromptContent() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
 
-  // First Use Storage Modal
+  // Modals
   const [isFirstUseModalOpen, setIsFirstUseModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
+  // Load existing draft if present, and fetch dynamic metadata
   useEffect(() => {
+    // 1. Check in-memory draft store
+    const draft = promptDraftStore.getDraft();
+    if (draft && draft.content) {
+      setContent(draft.content);
+      setLanguage(draft.language || "en");
+      setDirection(draft.direction || "ltr");
+      if (draft.title) setTitle(draft.title);
+      if (draft.description) setDescription(draft.description);
+      if (draft.category) setCategory(draft.category);
+      if (draft.projectId) setProjectId(draft.projectId);
+      if (draft.tags && Array.isArray(draft.tags)) setTagsInput(draft.tags.join(", "));
+    }
+
+    // 2. Fetch categories & projects
     Promise.all([fetchCategories(), fetchProjects()])
       .then(([cats, projs]) => {
         setCategories(cats);
         setProjects(projs);
-        if (cats.length > 0) {
+        if (!draft?.category && cats.length > 0) {
           setCategory(cats[0].name);
         }
-        if (projs.length > 0) {
+        if (!draft?.projectId && projs.length > 0) {
           setProjectId(projs[0].id);
         }
       })
       .catch(console.error);
   }, []);
 
-  const executeSavePrompt = async () => {
+  // Compute live word count and stats for the prompt
+  const stats = useMemo(() => {
+    const trimmed = content.trim();
+    if (!trimmed) return { words: 0, characters: 0, lines: 0 };
+    const words = trimmed.split(/\s+/).filter(Boolean).length;
+    const characters = trimmed.length;
+    const lines = trimmed.split("\n").length;
+    return { words, characters, lines };
+  }, [content]);
+
+  // Step 1 -> Step 2 transition
+  const handleContinueToDetails = () => {
+    if (!content.trim()) {
+      setError("Please write or paste your prompt instructions before continuing.");
+      return;
+    }
+    setError(null);
+    setStep(2);
+  };
+
+  // Step 2 -> Step 1 back transition
+  const handleBackToEditor = () => {
+    setError(null);
+    setStep(1);
+  };
+
+  // Cancel Handler
+  const handleCancelClick = () => {
+    if (content.trim().length > 0) {
+      setIsCancelModalOpen(true);
+    } else {
+      promptDraftStore.clearDraft();
+      navigate("/prompts");
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    promptDraftStore.clearDraft();
+    setIsCancelModalOpen(false);
+    navigate("/prompts");
+  };
+
+  const handleSaveTemporaryDraft = () => {
+    const tags = tagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    promptDraftStore.setDraft({
+      content,
+      language,
+      direction,
+      title,
+      description,
+      category,
+      projectId,
+      tags,
+    });
+    setIsCancelModalOpen(false);
+    navigate("/prompts");
+  };
+
+  // Final Atomic Save in Step 2
+  const executeFinalSavePrompt = async () => {
     if (saving) return;
     setSaving(true);
     setError(null);
@@ -57,18 +158,22 @@ function CreatePromptContent() {
         .filter(Boolean);
 
       const res = await createPrompt({
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim() || undefined,
         category,
         projectId,
         tags,
-        content,
+        content: content.trim(),
         language,
         textDirection: direction,
       });
 
       if (res.success && res.promptId) {
+        // Clear temporary in-memory draft upon successful atomic save
+        promptDraftStore.clearDraft();
         navigate(`/prompts/${res.promptId}`);
+      } else {
+        setError(res.error || "Failed to create prompt.");
       }
     } catch (err: any) {
       console.error("Create prompt error:", err);
@@ -78,25 +183,25 @@ function CreatePromptContent() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Please enter a prompt title.");
       return;
     }
-    if (!content.trim()) {
-      setError("Please enter prompt instructions or paste your prompt content.");
+    if (!category.trim()) {
+      setError("Please select a category.");
       return;
     }
 
     try {
       const storagePath = await getStoragePath();
       if (!storagePath) {
-        // First-use requirement: prompt user to choose location before saving
+        // First-use storage check before final disk writing
         setIsFirstUseModalOpen(true);
         return;
       }
-      await executeSavePrompt();
+      await executeFinalSavePrompt();
     } catch (err: any) {
       setError(err.message || "Error checking storage path.");
     }
@@ -104,128 +209,70 @@ function CreatePromptContent() {
 
   const handleFirstUseStorageSuccess = async () => {
     setIsFirstUseModalOpen(false);
-    await executeSavePrompt();
+    await executeFinalSavePrompt();
   };
 
   return (
     <div className="max-w-5xl w-full mx-auto px-6 py-8 space-y-6 text-left">
-      {/* Top Header Navigation */}
-      <div className="flex items-center justify-between">
-        <Link
-          to="/prompts"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Library</span>
-        </Link>
-        <span className="text-xs font-bold text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5" />
-          Version 1 Initializer
-        </span>
+      {/* Top Header & Step Progress Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={step === 1 ? handleCancelClick : handleBackToEditor}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>{step === 1 ? "Cancel & Return" : "Back to Editor"}</span>
+          </button>
+        </div>
+
+        {/* Step Indicator Badges */}
+        <div className="flex items-center gap-2 text-xs">
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+              step === 1
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            <FileEdit className="h-3.5 w-3.5" />
+            <span>1. Write Prompt</span>
+          </div>
+
+          <span className="text-muted-foreground">→</span>
+
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition-all ${
+              step === 2
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>2. Prompt Details</span>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Create New Prompt</h1>
-        <p className="text-xs text-muted-foreground">
-          Multilingual Markdown prompt editor with RTL/LTR support, code snippets, checklists, tables, and images.
-        </p>
-      </div>
+      {/* Global Error Banner */}
+      {error && (
+        <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold animate-in fade-in duration-200">
+          {error}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold">
-            {error}
-          </div>
-        )}
-
-        <div className="glass-card p-6 rounded-2xl border border-border space-y-5 bg-card">
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-bold text-foreground mb-1.5">
-              Prompt Title <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. YouTube Video Script Generator, Python Code Reviewer, اردو مواد نگار..."
-              className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
-            />
+      {/* STEP 1: WRITE THE PROMPT (Distraction-Free) */}
+      {step === 1 && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Write Your Prompt</h1>
+            <p className="text-xs text-muted-foreground">
+              Draft or paste instructions in English, Urdu (اردو), Arabic, or any language. Use the rich markdown toolbar for lists, tables, and images.
+            </p>
           </div>
 
-          {/* Category, Workspace & Tags Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-                <Folder className="h-3.5 w-3.5 text-primary" />
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-primary" />
-                Workspace / Project
-              </label>
-              <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
-              >
-                {projects.map((proj) => (
-                  <option key={proj.id} value={proj.id}>
-                    {proj.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-                <Tag className="h-3.5 w-3.5 text-primary" />
-                Tags (Comma separated)
-              </label>
-              <input
-                type="text"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="youtube, marketing, urdu, ai"
-                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-bold text-foreground mb-1.5">
-              Short Description (Optional)
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief summary of what this prompt produces..."
-              className="block w-full px-3.5 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring/50"
-            />
-          </div>
-
-          {/* Multilingual Rich Markdown Prompt Content */}
-          <div>
-            <label className="block text-xs font-bold text-foreground mb-1.5">
-              Prompt Instructions & Content <span className="text-destructive">*</span>
-            </label>
+          <div className="glass-card p-6 rounded-2xl border border-border bg-card space-y-4 shadow-sm">
             <RichMarkdownEditor
               value={content}
               onChange={setContent}
@@ -236,45 +283,213 @@ function CreatePromptContent() {
               }}
               direction={direction}
               onDirectionChange={setDirection}
-              placeholder="Write or paste prompt instructions in English, Urdu (اردو), Arabic (العربية), Hindi (हिन्दी), Chinese (中文), or mixed languages. Use toolbar for checklists, tables, highlights, links, and images..."
-              minHeight="min-h-[420px]"
+              placeholder="Write or paste your prompt instructions here..."
+              minHeight="min-h-[460px]"
             />
+
+            {/* Word & Character Count Pill Bar */}
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border/40">
+              <div className="flex items-center gap-3 font-mono">
+                <span>{stats.words} words</span>
+                <span>•</span>
+                <span>{stats.characters} characters</span>
+                <span>•</span>
+                <span>{stats.lines} lines</span>
+              </div>
+              <span className="capitalize text-[10px] font-semibold px-2 py-0.5 rounded bg-muted">
+                {direction.toUpperCase()} Mode
+              </span>
+            </div>
+          </div>
+
+          {/* Step 1 Action Bar */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={handleCancelClick}
+              className="px-5 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={handleContinueToDetails}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer"
+            >
+              <span>Continue</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Action Bar */}
-        <div className="flex items-center justify-end gap-3">
-          <Link
-            to="/prompts"
-            className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer disabled:opacity-50"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving Version 1...</span>
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                <span>Save Prompt (v1)</span>
-              </>
-            )}
-          </button>
-        </div>
-      </form>
+      {/* STEP 2: PROMPT DETAILS & METADATA (Organize & Classify) */}
+      {step === 2 && (
+        <form onSubmit={handleDetailsSubmit} className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Prompt Details</h1>
+            <p className="text-xs text-muted-foreground">
+              Add metadata, categorize, and organize your prompt before saving it to your private library.
+            </p>
+          </div>
+
+          {/* Quick Content Summary Card */}
+          <div className="p-4 rounded-xl bg-secondary/30 border border-border/80 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-semibold text-foreground block">Prompt Content Confirmed</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {stats.words} words • {stats.characters} characters • {language.toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleBackToEditor}
+              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+            >
+              Edit Content
+            </button>
+          </div>
+
+          <div className="glass-card p-6 rounded-2xl border border-border space-y-5 bg-card shadow-sm">
+            {/* Title (Required) */}
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1.5">
+                Prompt Title <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Python Async Web Scraper, YouTube Script Generator, اردو مواد نگار..."
+                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+
+            {/* Category & Workspace / Project Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Category (Required) */}
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <Folder className="h-3.5 w-3.5 text-primary" />
+                  Category <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Workspace / Project (Optional) */}
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-primary" />
+                  Workspace / Project
+                </label>
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
+                >
+                  {projects.map((proj) => (
+                    <option key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tags (Optional) */}
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5 text-primary" />
+                Tags (Comma separated, optional)
+              </label>
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="coding, python, marketing, ai"
+                className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+
+            {/* Description (Optional) */}
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1.5">
+                Short Description (Optional)
+              </label>
+              <textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief summary or context of when to use this prompt..."
+                className="block w-full px-3.5 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none leading-relaxed"
+              />
+            </div>
+          </div>
+
+          {/* Step 2 Action Bar */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={handleBackToEditor}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-7 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Creating Prompt...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Create Prompt</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* First Use Storage Location Modal */}
       <FirstUseStorageModal
         isOpen={isFirstUseModalOpen}
         onClose={() => setIsFirstUseModalOpen(false)}
         onSelectSuccess={handleFirstUseStorageSuccess}
+      />
+
+      {/* Cancel & Draft Confirmation Modal */}
+      <CancelDraftModal
+        isOpen={isCancelModalOpen}
+        onKeepEditing={() => setIsCancelModalOpen(false)}
+        onSaveDraft={handleSaveTemporaryDraft}
+        onDiscard={handleDiscardDraft}
       />
     </div>
   );
@@ -287,4 +502,3 @@ export default function CreatePromptPage() {
     </Suspense>
   );
 }
-
