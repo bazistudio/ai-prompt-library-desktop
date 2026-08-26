@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Sun, Moon, Menu, X, ArrowRight } from "lucide-react";
+import { Sun, Moon, Menu, X, Download } from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { landingConfig } from "@/config/landingConfig";
 
@@ -95,11 +95,14 @@ export function LandingNavbar() {
           </Link>
 
           <a
-            href="#pricing"
+            href={landingConfig.downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/20 cursor-pointer"
+            aria-label="Download AI Prompt Library for Windows"
           >
-            <span>Get AI Prompt Library</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
+            <span>Download for Windows</span>
           </a>
         </div>
 
@@ -180,11 +183,15 @@ export function LandingNavbar() {
               Open Dashboard
             </Link>
             <a
-              href="#pricing"
+              href={landingConfig.downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md"
+              className="inline-flex items-center justify-center gap-2 w-full text-center px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md cursor-pointer"
+              aria-label="Download AI Prompt Library for Windows"
             >
-              Get AI Prompt Library
+              <Download className="h-4 w-4" />
+              <span>Download for Windows</span>
             </a>
           </div>
         </div>

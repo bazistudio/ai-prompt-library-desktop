@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Download } from "lucide-react";
 import { landingConfig } from "@/config/landingConfig";
 
 function GithubIcon({ className = "h-4 w-4" }: { className?: string }) {
@@ -30,10 +30,14 @@ export function LandingFinalCTA() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto pt-2">
           <a
-            href="#pricing"
+            href={landingConfig.downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs transition-all shadow-lg shadow-primary/25 cursor-pointer group"
+            aria-label="Download AI Prompt Library for Windows"
           >
-            <span>Get AI Prompt Library</span>
+            <Download className="h-4 w-4" />
+            <span>Download for Windows</span>
             <ArrowRight className="h-4 w-4 transform transition-transform group-hover:translate-x-1" />
           </a>
 
