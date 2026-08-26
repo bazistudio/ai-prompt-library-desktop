@@ -65,65 +65,7 @@ export function AppearanceSettings() {
         </SettingRow>
       </SettingsSection>
 
-      {/* 2. Color System */}
-      <SettingsSection
-        title="Brand & Color Palette"
-        description="Customize primary brand and secondary accent highlights. Success, warning, and error colors remain unaffected."
-      >
-        <SettingRow
-          title="Primary Brand Color"
-          description="Governs primary action buttons, landing page buttons, headers, and primary active states."
-        >
-          <ColorPicker
-            value={primaryColor}
-            onChange={setPrimaryColor}
-            presets={primaryPresets}
-            label="Select Preset Color"
-          />
-        </SettingRow>
-
-        <SettingRow
-          title="Accent Highlight Color"
-          description="Governs interactive highlights, category selections, focus rings, and badges."
-        >
-          <ColorPicker
-            value={accentColor}
-            onChange={setAccentColor}
-            presets={accentPresets}
-            label="Select Preset Color"
-          />
-        </SettingRow>
-      </SettingsSection>
-
-      {/* 3. Layout Options */}
-      <SettingsSection
-        title="Accessibility & Highlights"
-        description="Configure focus states, highlights, and animation performance."
-      >
-        <SettingRow
-          title="Highlights Behavior"
-          description="Use the accent color instead of primary color for focus rings, checkmarks, and badges."
-        >
-          <Toggle
-            checked={useAccentHighlights}
-            onChange={setUseAccentHighlights}
-            id="toggle-highlights"
-          />
-        </SettingRow>
-
-        <SettingRow
-          title="Reduce Motion"
-          description="Instantly disables all interface transition delays and animations."
-        >
-          <Toggle
-            checked={reduceAnimations}
-            onChange={setReduceAnimations}
-            id="toggle-motion"
-          />
-        </SettingRow>
-      </SettingsSection>
-
-      {/* 4. Live UI Mockup Preview */}
+      {/* 2. Live UI Mockup Preview */}
       <div className="space-y-3">
         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
           Theme Preview
@@ -180,6 +122,64 @@ export function AppearanceSettings() {
           </div>
         </div>
       </div>
+
+      {/* 3. Color System */}
+      <SettingsSection
+        title="Brand & Color Palette"
+        description="Customize primary brand and secondary accent highlights. Success, warning, and error colors remain unaffected."
+      >
+        <SettingRow
+          title="Primary Brand Color"
+          description="Governs primary action buttons, landing page buttons, headers, and primary active states."
+        >
+          <ColorPicker
+            value={primaryColor}
+            onChange={setPrimaryColor}
+            presets={primaryPresets}
+            label="Select Preset Color"
+          />
+        </SettingRow>
+
+        <SettingRow
+          title="Accent Highlight Color"
+          description="Governs interactive highlights, category selections, focus rings, and badges."
+        >
+          <ColorPicker
+            value={accentColor}
+            onChange={setAccentColor}
+            presets={accentPresets}
+            label="Select Preset Color"
+          />
+        </SettingRow>
+      </SettingsSection>
+
+      {/* 4. Layout Options */}
+      <SettingsSection
+        title="Accessibility & Highlights"
+        description="Configure focus states, highlights, and animation performance."
+      >
+        <SettingRow
+          title="Highlights Behavior"
+          description="Use the accent color instead of primary color for focus rings, checkmarks, and badges."
+        >
+          <Toggle
+            checked={useAccentHighlights}
+            onChange={setUseAccentHighlights}
+            id="toggle-highlights"
+          />
+        </SettingRow>
+
+        <SettingRow
+          title="Reduce Motion"
+          description="Instantly disables all interface transition delays and animations."
+        >
+          <Toggle
+            checked={reduceAnimations}
+            onChange={setReduceAnimations}
+            id="toggle-motion"
+          />
+        </SettingRow>
+      </SettingsSection>
     </div>
   );
 }
