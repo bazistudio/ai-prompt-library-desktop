@@ -29,7 +29,7 @@ export interface AutoUpdaterState {
 
 export function useAutoUpdater(): AutoUpdaterState {
   const [status, setStatus] = useState<UpdaterStatus>("idle");
-  const [currentVersion, setCurrentVersion] = useState<string>("1.0.7");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.0.8");
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
