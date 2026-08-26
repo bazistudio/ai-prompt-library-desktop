@@ -1,3 +1,5 @@
+import { getStoragePath, savePromptMarkdownToDisk } from "@/services/storage/storageService";
+
 export interface PromptVersion {
   id: string;
   version_number: number;
@@ -226,6 +228,22 @@ export async function createPrompt(input: CreatePromptInput): Promise<{ success:
   const nextPrompts = [newPrompt, ...currentPrompts];
   saveStoredPrompts(nextPrompts);
 
+  // Save Markdown file to physical user storage directory if configured
+  try {
+    const storagePath = await getStoragePath();
+    if (storagePath) {
+      await savePromptMarkdownToDisk(
+        storagePath,
+        input.category || "General",
+        id,
+        input.title,
+        input.content
+      );
+    }
+  } catch (err) {
+    console.warn("[promptService] Failed to write prompt to physical storage:", err);
+  }
+
   return { success: true, promptId: id };
 }
 
@@ -285,6 +303,22 @@ export async function addPromptVersion(input: AddVersionInput): Promise<{ succes
 
   prompts[index] = updatedPrompt;
   saveStoredPrompts(prompts);
+
+  // Save updated Markdown file to physical user storage directory
+  try {
+    const storagePath = await getStoragePath();
+    if (storagePath) {
+      await savePromptMarkdownToDisk(
+        storagePath,
+        updatedPrompt.category || "General",
+        updatedPrompt.id,
+        updatedPrompt.title,
+        updatedPrompt.current_content || input.content
+      );
+    }
+  } catch (err) {
+    console.warn("[promptService] Failed to write updated prompt to physical storage:", err);
+  }
 
   return { success: true, versionNumber: nextVersionNum };
 }

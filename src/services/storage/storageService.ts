@@ -1,5 +1,16 @@
 const STORAGE_PATH_KEY = "ai_prompt_library_storage_path";
 
+const DEFAULT_CATEGORIES = [
+  "Coding",
+  "Marketing",
+  "Creative Writing",
+  "Business",
+  "Academic",
+  "Productivity",
+  "Social Media",
+  "Personal",
+];
+
 function getElectronStorageAPI() {
   if (typeof window === "undefined") return null;
   return (window as any).electronAPI?.storage || (window as any).electron?.storage || null;
@@ -38,6 +49,53 @@ export async function getStoragePath(): Promise<string | null> {
   }
 
   return null;
+}
+
+/**
+ * Ensures category subfolders exist on the physical disk inside the user's storage path.
+ */
+export async function ensureStorageCategories(storagePath: string, categories: string[] = DEFAULT_CATEGORIES): Promise<void> {
+  if (!storagePath || !storagePath.trim()) return;
+
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("ensure_storage_categories", {
+      storagePath: storagePath.trim(),
+      categories,
+    });
+  } catch (err) {
+    console.warn("[StorageService] ensureStorageCategories note:", err);
+  }
+}
+
+/**
+ * Saves a prompt as a Markdown file natively into the user's storage directory.
+ */
+export async function savePromptMarkdownToDisk(
+    storagePath: string,
+    categoryFolder: string,
+    promptId: string,
+    title: string,
+    content: string
+): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  if (!storagePath || !storagePath.trim()) {
+    return { success: false, error: "Storage path is empty." };
+  }
+
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const filePath = await invoke<string>("save_prompt_markdown", {
+      storagePath: storagePath.trim(),
+      categoryFolder: categoryFolder.trim() || "General",
+      promptId: promptId.trim(),
+      title: title.trim(),
+      content: content.trim(),
+    });
+    return { success: true, filePath };
+  } catch (err: any) {
+    console.warn("[StorageService] savePromptMarkdownToDisk failed:", err);
+    return { success: false, error: err?.message || String(err) };
+  }
 }
 
 /**
@@ -100,6 +158,9 @@ export async function setStoragePath(newPath: string): Promise<{ success: boolea
     localStorage.setItem(STORAGE_PATH_KEY, cleanPath);
   }
 
+  // Initialize physical category directories on disk immediately
+  await ensureStorageCategories(cleanPath);
+
   try {
     const res = await fetch("/api/storage", {
       method: "POST",
@@ -131,6 +192,8 @@ export async function moveLibrary(newPath: string): Promise<{ success: boolean; 
     localStorage.setItem(STORAGE_PATH_KEY, cleanPath);
   }
 
+  await ensureStorageCategories(cleanPath);
+
   try {
     const res = await fetch("/api/storage", {
       method: "POST",
@@ -157,16 +220,25 @@ export async function openStorageFolder(): Promise<{ success: boolean; error?: s
     return { success: false, error: "Storage path not configured." };
   }
 
-  // 1. Try Tauri 2 opener
+  // 1. Try Native Rust explorer invoker (100% reliable on Windows)
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("open_in_file_manager", { path: storagePath });
+    return { success: true };
+  } catch {
+    // Fall through
+  }
+
+  // 2. Try Tauri 2 opener plugin
   try {
     const { openPath } = await import("@tauri-apps/plugin-opener");
     await openPath(storagePath);
     return { success: true };
   } catch {
-    // fall through
+    // Fall through
   }
 
-  // 2. Try Electron bridge
+  // 3. Try Electron bridge
   const electronStorage = getElectronStorageAPI();
   if (electronStorage && typeof electronStorage.openFolder === "function") {
     return electronStorage.openFolder(storagePath);
