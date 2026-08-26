@@ -41,7 +41,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1OUNCQ0IzMTk1N0JFMDUKUldRRnZsY1pzN3ljRldqYm9xeXhIRElKbkp5TTZhaEU3QS91NjBxQkRvUzhsb3c1bzExTVhuVWkK",
       "endpoints": [
-        "https://github.com/bazistudio/ai-prompt-library/releases/latest/download/latest.json"
+        "https://github.com/bazistudio/ai-prompt-library-desktop/releases/latest/download/latest.json"
       ]
     }
   }

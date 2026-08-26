@@ -57,8 +57,8 @@ export const landingConfig: ProductConfig = {
   heroHeadline: "Your Private AI Prompt Workspace",
   heroSubtitle:
     "Organize, create, improve, version, and reuse your AI prompts in a private, offline-first workspace built for serious AI work.",
-  githubUrl: "https://github.com/bazistudio/ai-prompt-library",
-  downloadUrl: "https://github.com/bazistudio/ai-prompt-library/releases/latest",
+  githubUrl: "https://github.com/bazistudio/ai-prompt-library-desktop",
+  downloadUrl: "https://github.com/bazistudio/ai-prompt-library-desktop/releases/latest",
   pricing: {
     demo: {
       title: "10-Day Demo",
