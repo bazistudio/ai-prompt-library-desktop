@@ -52,7 +52,7 @@ export interface ProductConfig {
 export const landingConfig: ProductConfig = {
   productName: "AI Prompt Library",
   brandName: "Bazi Studio",
-  version: "1.0.5",
+  version: "1.0.6",
   tagline: "Your Private AI Prompt Workspace",
   heroHeadline: "Your Private AI Prompt Workspace",
   heroSubtitle:
@@ -97,7 +97,7 @@ export const landingConfig: ProductConfig = {
   },
   videos: [], // Currently pending official Bazi Studio YouTube releases
   publicStats: {
-    latestVersion: "1.0.5",
+    latestVersion: "1.0.6",
     releaseDate: "2026-08-20",
     productStatus: "available",
     platform: "Windows Desktop",

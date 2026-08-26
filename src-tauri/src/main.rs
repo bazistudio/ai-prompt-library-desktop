@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
+use tauri::Emitter;
 
 fn main() {
     tauri::Builder::default()
@@ -36,6 +37,8 @@ fn main() {
 
             // Help Menu
             let help_menu = SubmenuBuilder::new(handle, "Help")
+                .item(&MenuItem::with_id(handle, "check_updates", "Check for Updates...", true, None::<&str>)?)
+                .separator()
                 .item(&MenuItem::with_id(handle, "about", "About AI Prompt Library", true, None::<&str>)?)
                 .build()?;
 
@@ -50,7 +53,15 @@ fn main() {
 
             Ok(())
         })
+        .on_menu_event(|app, event| {
+            if event.id() == "check_updates" {
+                let _ = app.emit("trigger-check-updates", ());
+            } else if event.id() == "about" {
+                let _ = app.emit("open-about-dialog", ());
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
 

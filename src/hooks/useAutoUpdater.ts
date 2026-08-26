@@ -29,7 +29,7 @@ export interface AutoUpdaterState {
 
 export function useAutoUpdater(): AutoUpdaterState {
   const [status, setStatus] = useState<UpdaterStatus>("idle");
-  const [currentVersion, setCurrentVersion] = useState<string>("1.0.5");
+  const [currentVersion, setCurrentVersion] = useState<string>("1.0.6");
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -53,12 +53,14 @@ export function useAutoUpdater(): AutoUpdaterState {
   const executeUpdateCheck = useCallback(async (isManual: boolean = false) => {
     if (!isTauri) {
       if (isManual) {
+        setIsModalOpen(true);
         setManualMessage("Updates are only available in the installed desktop application.");
       }
       return;
     }
 
     if (isManual) {
+      setIsModalOpen(true);
       setIsManualChecking(true);
       setManualMessage("Checking for updates from GitHub Releases...");
       setError(null);
@@ -101,7 +103,7 @@ export function useAutoUpdater(): AutoUpdaterState {
         setReleaseNotes(updateInfo.body);
       }
       if (isManual) {
-        setManualMessage(`New update available: v${nextVersion}. Starting download...`);
+        setManualMessage(`New update available: v${nextVersion}. Starting background download...`);
       }
 
       // Begin background download with percentage progress
@@ -152,6 +154,22 @@ export function useAutoUpdater(): AutoUpdaterState {
     }, 2500);
 
     return () => clearTimeout(timer);
+  }, [isTauri, executeUpdateCheck]);
+
+  // Listen to native desktop menu events (Help -> Check for Updates)
+  useEffect(() => {
+    if (!isTauri) return;
+    let unlisten: (() => void) | undefined;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen("trigger-check-updates", () => {
+        executeUpdateCheck(true);
+      }).then((unsub) => {
+        unlisten = unsub;
+      });
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
   }, [isTauri, executeUpdateCheck]);
 
   const checkForUpdatesManual = useCallback(async () => {

@@ -52,11 +52,26 @@ export function Navbar({
         </button>
 
         {/* Brand Logo & Title */}
-        <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
-            <Terminal className="h-4.5 w-4.5 text-primary-foreground" />
+        <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0 group">
+          <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden p-1 shadow-sm group-hover:border-primary/40 transition-all shrink-0">
+            <img
+              src="/images/logo.png"
+              alt="AI Prompt Library Logo"
+              width={26}
+              height={26}
+              className="object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLElement;
+                target.style.display = "none";
+                const fallback = target.parentElement?.querySelector(".logo-fallback") as HTMLElement;
+                if (fallback) fallback.style.display = "flex";
+              }}
+            />
+            <div className="logo-fallback hidden h-full w-full items-center justify-center bg-primary text-primary-foreground rounded-lg">
+              <Terminal className="h-4 w-4" />
+            </div>
           </div>
-          <span className="font-semibold text-sm md:text-base tracking-tight text-foreground hidden sm:inline truncate">
+          <span className="font-semibold text-sm md:text-base tracking-tight text-foreground group-hover:text-primary transition-colors hidden sm:inline truncate">
             AI Prompt Library
           </span>
         </Link>
