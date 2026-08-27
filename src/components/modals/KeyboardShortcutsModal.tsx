@@ -22,18 +22,22 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
     {
       title: "General & Navigation",
       shortcuts: [
-        { keys: ["⌘ / Ctrl", "K"], description: "Open Command Palette & Global Search" },
-        { keys: ["⌘ / Ctrl", "Shift", "N"], description: "Open Quick Capture Prompt dialog" },
-        { keys: ["⌘ / Ctrl", "N"], description: "Create New Prompt" },
-        { keys: ["?"], description: "Show Keyboard Shortcuts cheatsheet" },
+        { keys: ["Ctrl", "K"], description: "Open Command Palette & Global Search" },
+        { keys: ["Ctrl", "Shift", "N"], description: "Open Quick Capture Prompt dialog" },
+        { keys: ["Ctrl", "N"], description: "Create New Prompt" },
+        { keys: ["Ctrl", "O"], description: "Open Prompt Library" },
+        { keys: ["Ctrl", "B"], description: "Toggle Sidebar" },
+        { keys: ["Ctrl", ","], description: "Open Settings" },
+        { keys: ["Ctrl", "/"], description: "Show Keyboard Shortcuts cheatsheet" },
+        { keys: ["F11"], description: "Toggle Full Screen" },
         { keys: ["Esc"], description: "Close any modal or active dialog" },
       ],
     },
     {
       title: "Prompt Editor & Workspace",
       shortcuts: [
-        { keys: ["⌘ / Ctrl", "S"], description: "Save draft prompt / version" },
-        { keys: ["⌘ / Ctrl", "Shift", "C"], description: "Copy prompt to clipboard" },
+        { keys: ["Ctrl", "S"], description: "Save draft prompt / version" },
+        { keys: ["Ctrl", "Shift", "C"], description: "Copy prompt to clipboard" },
         { keys: ["Tab"], description: "Indent list item or insert spacing in codeblock" },
       ],
     },

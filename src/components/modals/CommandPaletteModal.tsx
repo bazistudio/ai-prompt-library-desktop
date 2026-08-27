@@ -1,33 +1,20 @@
+"use client";
+
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
-  PlusCircle,
-  FolderTree,
-  BarChart3,
-  Settings,
-  Sun,
-  Moon,
-  Keyboard,
-  HardDrive,
-  FileText,
-  Zap,
+  Folder,
+  Tag,
+  Star,
+  Clock,
   ArrowRight,
   X,
-  Layers,
-  Workflow,
-  Swords,
+  FileText,
+  Loader2,
+  FolderTree,
 } from "lucide-react";
-import { useTheme } from "@/components/theme/ThemeProvider";
-
-interface CommandPromptItem {
-  id: string;
-  title: string;
-  description?: string | null;
-  category_name?: string | null;
-  category?: string | null;
-  tags?: string[];
-}
+import { PromptItem, fetchPrompts } from "@/services/prompts/promptService";
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
@@ -36,28 +23,15 @@ interface CommandPaletteModalProps {
   onOpenShortcuts?: () => void;
 }
 
-interface CommandItem {
-  id: string;
-  title: string;
-  subtitle?: string;
-  category: "prompts" | "actions" | "navigation";
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
-  action: () => void;
-}
-
 export function CommandPaletteModal({
   isOpen,
   onClose,
-  onOpenQuickCapture,
-  onOpenShortcuts,
 }: CommandPaletteModalProps) {
   const [query, setQuery] = useState("");
-  const [prompts, setPrompts] = useState<CommandPromptItem[]>([]);
+  const [prompts, setPrompts] = useState<PromptItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -69,14 +43,13 @@ export function CommandPaletteModal({
     setSelectedIndex(0);
     setLoading(true);
 
-    fetch("/api/prompts")
-      .then((res) => res.json())
+    fetchPrompts()
       .then((data) => {
-        if (data.success && Array.isArray(data.prompts)) {
-          setPrompts(data.prompts);
+        if (Array.isArray(data)) {
+          setPrompts(data);
         }
       })
-      .catch((err) => console.error("Failed to load prompts for command palette:", err))
+      .catch((err) => console.error("Failed to load prompts for search:", err))
       .finally(() => setLoading(false));
 
     setTimeout(() => {
@@ -84,179 +57,71 @@ export function CommandPaletteModal({
     }, 50);
   }, [isOpen]);
 
-  // Construct items
-  const items: CommandItem[] = useMemo(() => {
-    const staticActions: CommandItem[] = [
-      {
-        id: "action-new-prompt",
-        title: "Create New Prompt",
-        subtitle: "Open the prompt editor to craft a new prompt",
-        category: "actions",
-        icon: PlusCircle,
-        badge: "Cmd+N",
-        action: () => {
-          navigate("/prompts/new");
-          onClose();
-        },
-      },
-      {
-        id: "action-quick-capture",
-        title: "Quick Capture Prompt",
-        subtitle: "Rapidly draft and save a prompt from anywhere",
-        category: "actions",
-        icon: Zap,
-        badge: "Cmd+Shift+N",
-        action: () => {
-          onClose();
-          onOpenQuickCapture?.();
-        },
-      },
-      {
-        id: "nav-dashboard",
-        title: "Go to Dashboard",
-        subtitle: "Overview of your recent activity and statistics",
-        category: "navigation",
-        icon: Layers,
-        action: () => {
-          navigate("/dashboard");
-          onClose();
-        },
-      },
-      {
-        id: "nav-workflows",
-        title: "Prompt Workflows & Chains",
-        subtitle: "Build and execute multi-step AI prompt pipelines",
-        category: "navigation",
-        icon: Workflow,
-        action: () => {
-          navigate("/workflows");
-          onClose();
-        },
-      },
-      {
-        id: "nav-arena",
-        title: "Model Comparison Arena",
-        subtitle: "Benchmark and test models side-by-side in real-time",
-        category: "navigation",
-        icon: Swords,
-        action: () => {
-          navigate("/arena");
-          onClose();
-        },
-      },
-      {
-        id: "nav-categories",
-        title: "Manage Categories & Workspaces",
-        subtitle: "Organize prompts into hierarchical folders",
-        category: "navigation",
-        icon: FolderTree,
-        action: () => {
-          navigate("/categories");
-          onClose();
-        },
-      },
-      {
-        id: "nav-analytics",
-        title: "Library Analytics",
-        subtitle: "View category distributions and 14-day velocity",
-        category: "navigation",
-        icon: BarChart3,
-        action: () => {
-          navigate("/dashboard");
-          onClose();
-        },
-      },
-      {
-        id: "nav-settings-storage",
-        title: "Storage & Database Maintenance",
-        subtitle: "Manage SQLite backups, vacuum, and file locations",
-        category: "navigation",
-        icon: HardDrive,
-        action: () => {
-          navigate("/settings?tab=storage");
-          onClose();
-        },
-      },
-      {
-        id: "nav-settings",
-        title: "Application Settings",
-        subtitle: "Customize themes, fonts, accounts, and licensing",
-        category: "navigation",
-        icon: Settings,
-        action: () => {
-          navigate("/settings");
-          onClose();
-        },
-      },
-      {
-        id: "action-toggle-theme",
-        title: `Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`,
-        subtitle: "Toggle workspace color theme",
-        category: "actions",
-        icon: theme === "dark" ? Sun : Moon,
-        action: () => {
-          setTheme(theme === "dark" ? "light" : "dark");
-          onClose();
-        },
-      },
-      {
-        id: "action-shortcuts",
-        title: "Keyboard Shortcuts Cheatsheet",
-        subtitle: "View full list of productivity hotkeys",
-        category: "actions",
-        icon: Keyboard,
-        badge: "?",
-        action: () => {
-          onClose();
-          onOpenShortcuts?.();
-        },
-      },
-    ];
-
-    const promptItems: CommandItem[] = prompts.map((p) => ({
-      id: `prompt-${p.id}`,
-      title: p.title,
-      subtitle: p.description || p.category_name || "Uncategorized",
-      category: "prompts",
-      icon: FileText,
-      badge: p.tags?.length ? `#${p.tags[0]}` : undefined,
-      action: () => {
-        navigate(`/prompts/${p.id}`);
-        onClose();
-      },
-    }));
-
-    const all = [...staticActions, ...promptItems];
-
+  // Comprehensive multi-field filtering (Title, Category, Subcategory, Tags, Description, Content)
+  const filteredPrompts = useMemo(() => {
     if (!query.trim()) {
-      return all;
+      return [...prompts].sort((a, b) => b.updated_at - a.updated_at);
     }
 
     const q = query.toLowerCase().trim();
-    return all.filter((item) => {
-      const matchTitle = item.title.toLowerCase().includes(q);
-      const matchSubtitle = item.subtitle ? item.subtitle.toLowerCase().includes(q) : false;
-      return matchTitle || matchSubtitle;
+
+    return prompts.filter((p) => {
+      // 1. Title match
+      const titleMatch = p.title?.toLowerCase().includes(q);
+
+      // 2. Category match
+      const categoryMatch = p.category?.toLowerCase().includes(q);
+
+      // 3. Subcategory match
+      const subcategoryMatch = p.subcategory_name
+        ? p.subcategory_name.toLowerCase().includes(q)
+        : false;
+
+      // 4. Tags match
+      const tagsMatch = Array.isArray(p.tags)
+        ? p.tags.some((t) => t.toLowerCase().includes(q))
+        : false;
+
+      // 5. Description match
+      const descMatch = p.description ? p.description.toLowerCase().includes(q) : false;
+
+      // 6. Content match
+      const contentMatch = p.current_content
+        ? p.current_content.toLowerCase().includes(q)
+        : false;
+
+      return (
+        titleMatch ||
+        categoryMatch ||
+        subcategoryMatch ||
+        tagsMatch ||
+        descMatch ||
+        contentMatch
+      );
     });
-  }, [query, prompts, theme, navigate, onClose, onOpenQuickCapture, onOpenShortcuts, setTheme]);
+  }, [query, prompts]);
 
   // Adjust selection bounds when items change
   useEffect(() => {
     setSelectedIndex(0);
-  }, [items.length]);
+  }, [filteredPrompts.length]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev < items.length - 1 ? prev + 1 : 0));
+      setSelectedIndex((prev) => (prev < filteredPrompts.length - 1 ? prev + 1 : 0));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, items.length - 1)));
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, filteredPrompts.length - 1)));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (items[selectedIndex]) {
-        items[selectedIndex].action();
+      if (filteredPrompts[selectedIndex]) {
+        navigate(`/prompts/${filteredPrompts[selectedIndex].id}`);
+        onClose();
+      } else if (query.trim()) {
+        navigate(`/prompts?search=${encodeURIComponent(query.trim())}`);
+        onClose();
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -273,12 +138,28 @@ export function CommandPaletteModal({
     }
   }, [selectedIndex]);
 
+  const handleSelectPrompt = (promptId: string) => {
+    navigate(`/prompts/${promptId}`);
+    onClose();
+  };
+
+  const formatDate = (ts: number) => {
+    try {
+      return new Date(ts).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "";
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-20 px-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-20 px-3 sm:px-4">
       <div
-        className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[82vh] animate-in fade-in zoom-in-95 duration-150"
         onKeyDown={handleKeyDown}
       >
         {/* Search Input Bar */}
@@ -289,94 +170,126 @@ export function CommandPaletteModal({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a command, search prompts, or jump to..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none"
+            placeholder="Search prompts by title, category, subcategory, tags, or content..."
+            className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground/60 focus:outline-none"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer"
+              className="text-muted-foreground hover:text-foreground p-1 rounded-md cursor-pointer transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
           )}
           <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border rounded">
-            ESC to close
+            ESC
           </kbd>
         </div>
 
         {/* Results List */}
-        <div ref={listRef} className="overflow-y-auto flex-1 p-2 space-y-1 divide-y divide-border/20">
+        <div ref={listRef} className="overflow-y-auto flex-1 p-2 space-y-1">
           {loading ? (
-            <div className="py-12 text-center text-xs text-muted-foreground">
-              Loading workspace index...
+            <div className="py-16 flex flex-col items-center justify-center gap-2.5 text-xs text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span>Searching prompt index...</span>
             </div>
-          ) : items.length === 0 ? (
-            <div className="py-12 text-center space-y-1">
-              <p className="text-xs font-semibold text-foreground">No matching commands or prompts</p>
+          ) : filteredPrompts.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <div className="h-10 w-10 mx-auto rounded-xl bg-muted/50 border border-border flex items-center justify-center text-muted-foreground">
+                <FileText className="h-5 w-5" />
+              </div>
+              <p className="text-xs font-semibold text-foreground">
+                No prompts found matching &ldquo;{query}&rdquo;
+              </p>
               <p className="text-[11px] text-muted-foreground">
-                Try searching with different keywords or create a new prompt.
+                Try searching with a different title, category, subcategory, or tag keyword.
               </p>
             </div>
           ) : (
-            items.map((item, index) => {
-              const Icon = item.icon;
+            filteredPrompts.map((prompt, index) => {
               const isSelected = index === selectedIndex;
 
               return (
                 <div
-                  key={item.id}
+                  key={prompt.id}
                   data-index={index}
-                  onClick={() => item.action()}
+                  onClick={() => handleSelectPrompt(prompt.id)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
+                  className={`flex flex-col gap-1.5 p-3 rounded-xl cursor-pointer transition-colors border text-left ${
                     isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-muted/60"
+                      ? "bg-primary/10 border-primary/30 text-foreground shadow-2xs"
+                      : "border-transparent hover:bg-muted/50 text-foreground"
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0 pr-2">
-                    <div
-                      className={`p-2 rounded-lg shrink-0 ${
-                        isSelected
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold truncate">{item.title}</div>
-                      {item.subtitle && (
-                        <div
-                          className={`text-[11px] truncate ${
-                            isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
-                          }`}
-                        >
-                          {item.subtitle}
-                        </div>
+                  {/* Top Metadata Row */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      {/* Category & Subcategory Badge */}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border flex items-center gap-1">
+                        <Folder className="h-3 w-3 text-primary" />
+                        <span>{prompt.category}</span>
+                        {prompt.subcategory_name && (
+                          <>
+                            <span className="text-muted-foreground/60 font-normal">→</span>
+                            <span className="text-primary">{prompt.subcategory_name}</span>
+                          </>
+                        )}
+                      </span>
+
+                      {/* Version Pill */}
+                      <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                        v{prompt.current_version}
+                      </span>
+
+                      {/* Favorite Star */}
+                      {prompt.is_favorite && (
+                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
                       )}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                      <Clock className="h-3 w-3" />
+                      <span>{formatDate(prompt.updated_at)}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.badge && (
-                      <span
-                        className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded border ${
-                          isSelected
-                            ? "bg-primary-foreground/20 border-primary-foreground/30 text-primary-foreground"
-                            : "bg-muted border-border text-muted-foreground"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
+                  {/* Title & Preview Snippet */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-0.5 min-w-0">
+                      <h4 className="text-xs sm:text-sm font-bold text-foreground truncate">
+                        {prompt.title}
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground line-clamp-1 leading-relaxed">
+                        {prompt.description || prompt.current_content || "No description provided."}
+                      </p>
+                    </div>
+
                     <ArrowRight
-                      className={`h-3.5 w-3.5 ${
-                        isSelected ? "text-primary-foreground opacity-100" : "opacity-0"
+                      className={`h-4 w-4 shrink-0 transition-opacity ${
+                        isSelected ? "text-primary opacity-100" : "opacity-0"
                       }`}
                     />
                   </div>
+
+                  {/* Tags Row */}
+                  {prompt.tags && prompt.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {prompt.tags.slice(0, 4).map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-muted text-muted-foreground flex items-center gap-0.5"
+                        >
+                          <Tag className="h-2.5 w-2.5" />
+                          {tag}
+                        </span>
+                      ))}
+                      {prompt.tags.length > 4 && (
+                        <span className="text-[9px] text-muted-foreground/70">
+                          +{prompt.tags.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -393,10 +306,10 @@ export function CommandPaletteModal({
             </span>
             <span>
               <kbd className="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↵</kbd> to
-              select
+              open prompt
             </span>
           </div>
-          <div>{items.length} options available</div>
+          <div>{filteredPrompts.length} prompts</div>
         </div>
       </div>
     </div>

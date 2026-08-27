@@ -6,6 +6,7 @@ import {
   updatePromptMetaDb,
   toggleFavoriteDb,
   deletePromptDb,
+  deletePromptVersionsDb,
   getPromptsDb,
   getPromptByIdDb,
   getPromptStatsDb,
@@ -41,6 +42,11 @@ export function toggleFavorite(promptId: string) {
 export function deletePrompt(promptId: string) {
   const db = getSQLiteDB();
   return deletePromptDb(db, promptId);
+}
+
+export function deletePromptVersions(promptId: string, versionIds: string[]) {
+  const db = getSQLiteDB();
+  return deletePromptVersionsDb(db, promptId, versionIds);
 }
 
 export function incrementPromptUsage(promptId: string) {

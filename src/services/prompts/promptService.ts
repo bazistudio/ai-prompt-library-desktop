@@ -14,6 +14,8 @@ export interface PromptItem {
   description?: string;
   category: string;
   category_id?: string;
+  subcategory_id?: string | null;
+  subcategory_name?: string | null;
   project_id?: string;
   project_name?: string;
   project_color?: string;
@@ -34,6 +36,7 @@ export interface CreatePromptInput {
   description?: string;
   category?: string;
   categoryId?: string;
+  subcategoryId?: string | null;
   projectId?: string;
   tags?: string[];
   content: string;
@@ -53,6 +56,7 @@ export interface UpdateMetaInput {
   description?: string;
   category?: string;
   categoryId?: string;
+  subcategoryId?: string | null;
   projectId?: string;
   tags?: string[];
   textDirection?: "ltr" | "rtl" | "auto";
@@ -62,6 +66,8 @@ export interface UpdateMetaInput {
 export interface GetPromptsOptions {
   category?: string;
   categoryId?: string;
+  subcategoryId?: string;
+  subcategory?: string;
   projectId?: string;
   search?: string;
   favoriteOnly?: boolean;
@@ -107,6 +113,8 @@ export async function fetchPrompts(options: GetPromptsOptions = {}): Promise<Pro
     const params = new URLSearchParams();
     if (options.projectId) params.set("projectId", options.projectId);
     if (options.categoryId) params.set("categoryId", options.categoryId);
+    if (options.subcategoryId) params.set("subcategoryId", options.subcategoryId);
+    if (options.subcategory) params.set("subcategory", options.subcategory);
     if (options.category) params.set("category", options.category);
     if (options.search) params.set("search", options.search);
     if (options.favoriteOnly) params.set("favoriteOnly", "true");
@@ -129,6 +137,11 @@ export async function fetchPrompts(options: GetPromptsOptions = {}): Promise<Pro
   }
   if (options.category && options.category !== "All") {
     prompts = prompts.filter((p) => p.category.toLowerCase() === options.category?.toLowerCase());
+  }
+  if (options.subcategoryId) {
+    prompts = prompts.filter((p) => p.subcategory_id === options.subcategoryId);
+  } else if (options.subcategory && options.subcategory !== "All") {
+    prompts = prompts.filter((p) => p.subcategory_name?.toLowerCase() === options.subcategory?.toLowerCase());
   }
   if (options.projectId) {
     prompts = prompts.filter((p) => p.project_id === options.projectId);
@@ -211,6 +224,7 @@ export async function createPrompt(input: CreatePromptInput): Promise<{ success:
     description: input.description?.trim() || undefined,
     category: input.category || "General",
     category_id: input.categoryId,
+    subcategory_id: input.subcategoryId || null,
     project_id: input.projectId || "proj_default",
     is_favorite: false,
     is_archived: false,
@@ -358,6 +372,7 @@ export async function updatePromptMeta(input: UpdateMetaInput): Promise<{ succes
     description: input.description !== undefined ? input.description.trim() : prompt.description,
     category: input.category !== undefined ? input.category : prompt.category,
     category_id: input.categoryId !== undefined ? input.categoryId : prompt.category_id,
+    subcategory_id: input.subcategoryId !== undefined ? input.subcategoryId : prompt.subcategory_id,
     project_id: input.projectId !== undefined ? input.projectId : prompt.project_id,
     tags: input.tags !== undefined ? input.tags : prompt.tags,
     text_direction: input.textDirection !== undefined ? input.textDirection : prompt.text_direction,
@@ -467,7 +482,7 @@ export async function fetchPromptStats(): Promise<{
   };
 }
 
-export async function deletePrompt(id: string): Promise<{ success: boolean }> {
+export async function deletePrompt(id: string): Promise<{ success: boolean; error?: string }> {
   if (isElectron()) {
     return (window as any).electron.prompts.delete(id);
   }
@@ -490,4 +505,62 @@ export async function deletePrompt(id: string): Promise<{ success: boolean }> {
   const nextPrompts = prompts.filter((p) => p.id !== id);
   saveStoredPrompts(nextPrompts);
   return { success: true };
+}
+
+export async function deletePromptVersions(
+  promptId: string,
+  versionIds: string[]
+): Promise<{ success: boolean; updatedPrompt?: PromptItem; error?: string }> {
+  if (isElectron()) {
+    return (window as any).electron.prompts.deleteVersions(promptId, versionIds);
+  }
+
+  try {
+    const res = await fetch(`/api/desktop-prompts/${promptId}/versions`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ versionIds }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        return data;
+      }
+    }
+  } catch {
+    // Offline mode
+  }
+
+  const prompts = getStoredPrompts();
+  const index = prompts.findIndex((p) => p.id === promptId);
+  if (index === -1) {
+    return { success: false, error: "Prompt not found." };
+  }
+
+  const target = prompts[index];
+  const currentVersions = target.versions || [];
+  const remainingVersions = currentVersions.filter((v) => !versionIds.includes(v.id));
+
+  if (remainingVersions.length === 0) {
+    return {
+      success: false,
+      error: "Cannot delete all versions. A prompt must retain at least one version.",
+    };
+  }
+
+  // Sort remaining versions ascending
+  remainingVersions.sort((a, b) => a.version_number - b.version_number);
+  const highestVersion = remainingVersions[remainingVersions.length - 1];
+
+  const updatedPrompt: PromptItem = {
+    ...target,
+    versions: remainingVersions,
+    current_version: highestVersion.version_number,
+    current_content: highestVersion.content,
+    updated_at: Date.now(),
+  };
+
+  prompts[index] = updatedPrompt;
+  saveStoredPrompts(prompts);
+  return { success: true, updatedPrompt };
 }

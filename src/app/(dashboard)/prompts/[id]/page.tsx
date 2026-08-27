@@ -31,6 +31,7 @@ import { MarkdownRenderer } from "@/components/editor/MarkdownRenderer";
 import { RichMarkdownEditor } from "@/components/editor/RichMarkdownEditor";
 import { TextDirection } from "@/components/editor/languageDetector";
 import { AIEnhanceModal } from "@/components/modals/AIEnhanceModal";
+import { SafeDeletePromptModal } from "@/components/prompts/SafeDeletePromptModal";
 
 export default function PromptDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -49,8 +50,9 @@ export default function PromptDetailPage() {
   const [viewFormat, setViewFormat] = useState<"formatted" | "raw">("formatted");
   const [error, setError] = useState<string | null>(null);
 
-  // AI Enhance modal state
+  // Modals
   const [enhanceModalOpen, setEnhanceModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const loadPromptData = useCallback(async () => {
     try {
@@ -77,6 +79,15 @@ export default function PromptDetailPage() {
   useEffect(() => {
     loadPromptData();
   }, [loadPromptData]);
+
+  // Listen to menu delete prompt action
+  useEffect(() => {
+    const handleMenuDelete = () => {
+      setIsDeleteModalOpen(true);
+    };
+    window.addEventListener("app:trigger-safe-delete-prompt", handleMenuDelete);
+    return () => window.removeEventListener("app:trigger-safe-delete-prompt", handleMenuDelete);
+  }, []);
 
   const activeVersion: PromptVersion | undefined = prompt?.versions?.find(
     (v) => v.version_number === selectedVersionNum
@@ -124,16 +135,16 @@ export default function PromptDetailPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!prompt) return;
-    if (confirm(`Are you sure you want to delete "${prompt.title}"?`)) {
-      try {
-        await deletePrompt(prompt.id);
-        navigate("/prompts");
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleVersionsDeleted = (updatedPrompt: PromptItem) => {
+    setPrompt(updatedPrompt);
+    setSelectedVersionNum(updatedPrompt.current_version);
+    setEditedContent(updatedPrompt.current_content || "");
+    setIsEditing(false);
   };
 
   const handleSaveAsNewVersion = async () => {
@@ -256,6 +267,12 @@ export default function PromptDetailPage() {
           <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 text-xs font-bold shadow-2xs flex items-center gap-1 shrink-0">
             <Folder className="h-3 w-3" />
             <span>{prompt.category}</span>
+            {prompt.subcategory_name && (
+              <>
+                <span className="text-primary/60 font-normal">→</span>
+                <span>{prompt.subcategory_name}</span>
+              </>
+            )}
           </span>
 
           {/* Version Pills Bar */}
@@ -502,6 +519,15 @@ export default function PromptDetailPage() {
           setChangeSummary("Enhanced with Gemini AI");
           setIsEditing(true);
         }}
+      />
+
+      {/* Multi-Step Safe Delete Modal */}
+      <SafeDeletePromptModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        prompt={prompt}
+        onPromptDeleted={() => navigate("/prompts")}
+        onVersionsDeleted={handleVersionsDeleted}
       />
     </div>
   );

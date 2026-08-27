@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
 
     const category = searchParams.get("category") || undefined;
     const categoryId = searchParams.get("categoryId") || undefined;
+    const subcategoryId = searchParams.get("subcategoryId") || undefined;
+    const subcategory = searchParams.get("subcategory") || undefined;
     const projectId = searchParams.get("projectId") || undefined;
     const search = searchParams.get("search") || undefined;
     const favoriteOnly = searchParams.get("favoriteOnly") === "true";
 
-    const prompts = getPrompts({ category, categoryId, projectId, search, favoriteOnly });
+    const prompts = getPrompts({ category, categoryId, subcategoryId, subcategory, projectId, search, favoriteOnly });
     return NextResponse.json({ success: true, prompts });
   } catch (error: any) {
     console.error("GET /api/desktop-prompts error:", error);

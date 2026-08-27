@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
   Search,
@@ -12,20 +12,48 @@ import {
   LayoutGrid,
   List,
   Activity,
+  FolderTree,
 } from "lucide-react";
 import { fetchPrompts, toggleFavorite, PromptItem } from "@/services/prompts/promptService";
+import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
+import { SubcategoryItem, fetchSubcategories } from "@/services/categories/subcategoryService";
 
 function PromptsLibraryContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeCategory = searchParams.get("category") || "All";
+  const activeSubcategoryId = searchParams.get("subcategoryId") || "";
+  const activeSubcategory = searchParams.get("subcategory") || "";
   const activeProjectId = searchParams.get("projectId") || "";
   const isFavoriteOnly = searchParams.get("favorite") === "true";
 
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Load categories and subcategories for filter chips
+  useEffect(() => {
+    Promise.all([fetchCategories(), fetchSubcategories()])
+      .then(([cats, subcats]) => {
+        setCategories(cats);
+        setSubcategories(subcats);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Filter available subcategories for current activeCategory
+  const currentCategoryObj = useMemo(() => {
+    if (activeCategory === "All") return null;
+    return categories.find((c) => c.name.toLowerCase() === activeCategory.toLowerCase());
+  }, [categories, activeCategory]);
+
+  const activeCategorySubcats = useMemo(() => {
+    if (!currentCategoryObj) return [];
+    return subcategories.filter((s) => s.category_id === currentCategoryObj.id);
+  }, [subcategories, currentCategoryObj]);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,6 +61,8 @@ function PromptsLibraryContent() {
 
     fetchPrompts({
       category: activeCategory !== "All" ? activeCategory : undefined,
+      subcategoryId: activeSubcategoryId || undefined,
+      subcategory: activeSubcategory || undefined,
       projectId: activeProjectId || undefined,
       favoriteOnly: isFavoriteOnly,
       search: searchQuery,
@@ -48,7 +78,7 @@ function PromptsLibraryContent() {
     return () => {
       isMounted = false;
     };
-  }, [activeCategory, activeProjectId, isFavoriteOnly, searchQuery]);
+  }, [activeCategory, activeSubcategoryId, activeSubcategory, activeProjectId, isFavoriteOnly, searchQuery]);
 
   const handleToggleFavorite = async (e: React.MouseEvent, promptId: string) => {
     e.stopPropagation();
@@ -61,6 +91,18 @@ function PromptsLibraryContent() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleSelectSubcategoryFilter = (subcatId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (subcatId) {
+      params.set("subcategoryId", subcatId);
+      params.delete("subcategory");
+    } else {
+      params.delete("subcategoryId");
+      params.delete("subcategory");
+    }
+    navigate(`/prompts?${params.toString()}`);
   };
 
   const formatDate = (ts: number) => {
@@ -93,7 +135,7 @@ function PromptsLibraryContent() {
 
         <Link
           to="/prompts/new"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary shrink-0"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all shadow-md shadow-primary/25 shrink-0"
         >
           <Plus className="h-4 w-4" />
           <span>Create Prompt</span>
@@ -145,6 +187,45 @@ function PromptsLibraryContent() {
         </div>
       </div>
 
+      {/* Subcategory Filter Pills (Displayed when a specific category has subcategories) */}
+      {activeCategory !== "All" && activeCategorySubcats.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none animate-in fade-in duration-150">
+          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1 shrink-0 mr-1">
+            <FolderTree className="h-3.5 w-3.5 text-primary" />
+            Subcategories:
+          </span>
+          <button
+            type="button"
+            onClick={() => handleSelectSubcategoryFilter(null)}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+              !activeSubcategoryId && !activeSubcategory
+                ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            All
+          </button>
+          {activeCategorySubcats.map((subcat) => {
+            const isSubcatActive =
+              activeSubcategoryId === subcat.id || activeSubcategory.toLowerCase() === subcat.name.toLowerCase();
+            return (
+              <button
+                key={subcat.id}
+                type="button"
+                onClick={() => handleSelectSubcategoryFilter(subcat.id)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                  isSubcatActive
+                    ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                    : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {subcat.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Content Area */}
       {loading ? (
         <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
@@ -159,14 +240,14 @@ function PromptsLibraryContent() {
           <div className="space-y-1 max-w-sm">
             <h3 className="text-base font-bold text-foreground">No prompts found</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              {searchQuery || activeCategory !== "All" || isFavoriteOnly
-                ? "No prompts match your active search or category filters."
+              {searchQuery || activeCategory !== "All" || activeSubcategoryId || isFavoriteOnly
+                ? "No prompts match your active search, category, or subcategory filters."
                 : "Create your first prompt template to start building your offline library."}
             </p>
           </div>
           <Link
             to="/prompts/new"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md shadow-primary"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-md shadow-primary/25"
           >
             <Plus className="h-4 w-4" />
             <span>Create New Prompt</span>
@@ -183,9 +264,16 @@ function PromptsLibraryContent() {
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Category & Subcategory Badge */}
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border flex items-center gap-1">
                     <Folder className="h-3 w-3 text-primary" />
-                    {prompt.category}
+                    <span>{prompt.category}</span>
+                    {prompt.subcategory_name && (
+                      <>
+                        <span className="text-muted-foreground/60 font-normal">→</span>
+                        <span className="text-primary">{prompt.subcategory_name}</span>
+                      </>
+                    )}
                   </span>
                   {prompt.project_name && (
                     <span
@@ -307,8 +395,15 @@ function PromptsLibraryContent() {
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border hidden sm:inline">
-                  {prompt.category}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border flex items-center gap-1">
+                  <Folder className="h-3 w-3 text-primary" />
+                  <span>{prompt.category}</span>
+                  {prompt.subcategory_name && (
+                    <>
+                      <span className="text-muted-foreground/60 font-normal">→</span>
+                      <span className="text-primary">{prompt.subcategory_name}</span>
+                    </>
+                  )}
                 </span>
                 <span className="text-[10px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
                   <Activity className="h-3 w-3" />

@@ -7,6 +7,7 @@ export interface PromptDraft {
   title?: string;
   description?: string;
   category?: string;
+  subcategoryId?: string | null;
   projectId?: string;
   tags?: string[];
   lastUpdated: number;
@@ -27,6 +28,7 @@ export const promptDraftStore = {
       title: draft.title,
       description: draft.description,
       category: draft.category,
+      subcategoryId: draft.subcategoryId,
       projectId: draft.projectId,
       tags: draft.tags,
       lastUpdated: Date.now(),

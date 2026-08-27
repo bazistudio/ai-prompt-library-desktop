@@ -6,6 +6,7 @@ import {
   Loader2,
   Tag,
   Folder,
+  FolderTree,
   Sparkles,
   Layers,
   FileEdit,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { createPrompt } from "@/services/prompts/promptService";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
+import { SubcategoryItem, fetchSubcategories } from "@/services/categories/subcategoryService";
 import { ProjectItem, fetchProjects } from "@/services/projects/projectService";
 import { getStoragePath } from "@/services/storage/storageService";
 import { promptDraftStore } from "@/services/prompts/promptDraftStore";
@@ -38,6 +40,7 @@ function CreatePromptContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Coding");
+  const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [projectId, setProjectId] = useState("proj_default");
   const [tagsInput, setTagsInput] = useState("");
 
@@ -45,8 +48,9 @@ function CreatePromptContent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dynamic Categories & Projects
+  // Dynamic Categories, Subcategories & Projects
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
 
   // Modals
@@ -63,13 +67,15 @@ function CreatePromptContent() {
       if (draft.title) setTitle(draft.title);
       if (draft.description) setDescription(draft.description);
       if (draft.category) setCategory(draft.category);
+      if (draft.subcategoryId) setSubcategoryId(draft.subcategoryId);
       if (draft.projectId) setProjectId(draft.projectId);
       if (draft.tags && Array.isArray(draft.tags)) setTagsInput(draft.tags.join(", "));
     }
 
-    Promise.all([fetchCategories(), fetchProjects()])
-      .then(([cats, projs]) => {
+    Promise.all([fetchCategories(), fetchSubcategories(), fetchProjects()])
+      .then(([cats, subcats, projs]) => {
         setCategories(cats);
+        setSubcategories(subcats);
         setProjects(projs);
         if (!draft?.category && cats.length > 0) {
           setCategory(cats[0].name);
@@ -90,6 +96,21 @@ function CreatePromptContent() {
     const lines = trimmed.split("\n").length;
     return { words, characters, lines };
   }, [content]);
+
+  // Resolve selected category object and dependent subcategories
+  const selectedCategoryObj = useMemo(() => {
+    return categories.find((c) => c.name.toLowerCase() === category.toLowerCase());
+  }, [categories, category]);
+
+  const availableSubcategories = useMemo(() => {
+    if (!selectedCategoryObj) return [];
+    return subcategories.filter((s) => s.category_id === selectedCategoryObj.id);
+  }, [subcategories, selectedCategoryObj]);
+
+  const handleCategoryChange = (newCatName: string) => {
+    setCategory(newCatName);
+    setSubcategoryId(""); // Automatically reset subcategory when category changes
+  };
 
   // Step 1 -> Step 2 transition
   const handleContinueToDetails = () => {
@@ -136,6 +157,7 @@ function CreatePromptContent() {
       title,
       description,
       category,
+      subcategoryId: subcategoryId || undefined,
       projectId,
       tags,
     });
@@ -159,6 +181,8 @@ function CreatePromptContent() {
         title: title.trim(),
         description: description.trim() || undefined,
         category,
+        categoryId: selectedCategoryObj?.id,
+        subcategoryId: subcategoryId || undefined,
         projectId,
         tags,
         content: content.trim(),
@@ -358,8 +382,9 @@ function CreatePromptContent() {
               />
             </div>
 
-            {/* Category & Workspace Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Category, Subcategory & Workspace Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Parent Category (Required) */}
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                   <Folder className="h-3.5 w-3.5 text-primary" />
@@ -367,7 +392,7 @@ function CreatePromptContent() {
                 </label>
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
                   className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer"
                 >
                   {categories.map((cat) => (
@@ -378,6 +403,32 @@ function CreatePromptContent() {
                 </select>
               </div>
 
+              {/* Dependent Subcategory (Optional) */}
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <FolderTree className="h-3.5 w-3.5 text-primary" />
+                  Subcategory <span className="text-muted-foreground font-normal">(Optional)</span>
+                </label>
+                <select
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  disabled={availableSubcategories.length === 0}
+                  className="block w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {availableSubcategories.length === 0
+                      ? "No subcategories available"
+                      : "No Subcategory (None)"}
+                  </option>
+                  {availableSubcategories.map((subcat) => (
+                    <option key={subcat.id} value={subcat.id}>
+                      {subcat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Workspace / Project */}
               <div>
                 <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5 text-primary" />
