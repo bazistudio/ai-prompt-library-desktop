@@ -310,17 +310,12 @@ export function Navbar({
             <h3 className="text-lg font-bold text-foreground mb-0.5">
               {userProfile.username}
             </h3>
-            <p className="text-xs text-muted-foreground mb-3 font-mono">
+            <p className="text-xs text-muted-foreground mb-4 font-mono">
               {userProfile.email}
             </p>
 
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-online text-status-online-foreground text-[11px] font-semibold mb-5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Active Workspace Session</span>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="w-full space-y-2">
+            {/* Action Button */}
+            <div className="w-full">
               <button
                 type="button"
                 onClick={() => {
@@ -331,18 +326,6 @@ export function Navbar({
               >
                 <Settings className="h-4 w-4" />
                 <span>Account & Photo Settings</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfileModal(false);
-                  handleLockAction();
-                }}
-                className="w-full py-2.5 px-4 rounded-xl border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Lock Application</span>
               </button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { AboutModal } from "@/components/modals/AboutModal";
 import { QuickCaptureModal } from "@/components/quick-capture/QuickCaptureModal";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
 import { getStoragePath } from "@/services/storage/storageService";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -32,6 +33,7 @@ export function AppShell({ children, session }: AppShellProps) {
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -41,6 +43,25 @@ export function AppShell({ children, session }: AppShellProps) {
       } catch {}
       return next;
     });
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const win = getCurrentWindow();
+      const isFull = await win.isFullscreen();
+      await win.setFullscreen(!isFull);
+    } catch {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
+
+  const toggleAppTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   const username = session?.username || "Developer";
@@ -60,6 +81,27 @@ export function AppShell({ children, session }: AppShellProps) {
         (document.activeElement as HTMLElement)?.isContentEditable;
 
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+
+      // Ctrl + S: Save Prompt
+      if (isCtrlOrMeta && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("app:save-prompt"));
+        return;
+      }
+
+      // Ctrl + E: Edit Prompt / New Version
+      if (isCtrlOrMeta && (e.key === "e" || e.key === "E")) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("app:edit-prompt"));
+        return;
+      }
+
+      // F11: Toggle Fullscreen
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
 
       // Ctrl + Shift + N: Quick Capture
       if (isCtrlOrMeta && e.shiftKey && (e.key === "N" || e.key === "n")) {
@@ -116,7 +158,7 @@ export function AppShell({ children, session }: AppShellProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  }, [navigate, theme]);
 
   // Listen to native desktop shell events from Tauri
   useEffect(() => {
@@ -131,15 +173,18 @@ export function AppShell({ children, session }: AppShellProps) {
           const action = event.payload;
           switch (action) {
             case "new_prompt":
-            case "prompt_new":
               navigate("/prompts/new");
               break;
+            case "save_prompt":
+              window.dispatchEvent(new CustomEvent("app:save-prompt"));
+              break;
+            case "edit_prompt":
+              window.dispatchEvent(new CustomEvent("app:edit-prompt"));
+              break;
             case "quick_capture":
-            case "prompt_quick_capture":
               setQuickCaptureOpen(true);
               break;
             case "open_library":
-            case "view_library":
               navigate("/prompts");
               break;
             case "open_storage":
@@ -175,25 +220,14 @@ export function AppShell({ children, session }: AppShellProps) {
             case "toggle_sidebar":
               toggleSidebar();
               break;
-            case "toggle_theme": {
-              const isDark = document.documentElement.classList.contains("dark");
-              if (isDark) {
-                document.documentElement.classList.remove("dark");
-                localStorage.setItem("theme", "light");
-              } else {
-                document.documentElement.classList.add("dark");
-                localStorage.setItem("theme", "dark");
-              }
+            case "toggle_fullscreen":
+              toggleFullscreen();
               break;
-            }
+            case "toggle_theme":
+              toggleAppTheme();
+              break;
             case "prompt_favorites":
               navigate("/prompts?favorite=true");
-              break;
-            case "prompt_version_history":
-              window.dispatchEvent(new CustomEvent("app:toggle-version-history"));
-              break;
-            case "prompt_delete":
-              window.dispatchEvent(new CustomEvent("app:trigger-safe-delete-prompt"));
               break;
             case "workspace_switch":
             case "workspace_categories":
@@ -219,8 +253,8 @@ export function AppShell({ children, session }: AppShellProps) {
             default:
               break;
           }
-        }).then((unsub) => {
-          unlistenMenu = unsub;
+        }).then((unlisten) => {
+          unlistenMenu = unlisten;
         });
 
         listen("open-documentation", async () => {
@@ -230,18 +264,18 @@ export function AppShell({ children, session }: AppShellProps) {
           } catch {
             window.open("https://github.com/bazistudio/ai-prompt-library-desktop#readme", "_blank", "noopener,noreferrer");
           }
-        }).then((unsub) => {
-          unlistenDocs = unsub;
+        }).then((unlisten) => {
+          unlistenDocs = unlisten;
         });
 
-        listen("open-about-dialog", () => {
+        listen("open-about", () => {
           setAboutModalOpen(true);
-        }).then((unsub) => {
-          unlistenAbout = unsub;
+        }).then((unlisten) => {
+          unlistenAbout = unlisten;
         });
       })
-      .catch(() => {
-        // Not in Tauri environment
+      .catch((err) => {
+        console.warn("[AppShell] Tauri events unavailable in current runtime:", err);
       });
 
     return () => {
@@ -249,66 +283,60 @@ export function AppShell({ children, session }: AppShellProps) {
       if (unlistenDocs) unlistenDocs();
       if (unlistenAbout) unlistenAbout();
     };
-  }, [navigate]);
+  }, [navigate, theme]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* Fullscreen Application Lock Overlay */}
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground select-none">
+      {/* Full-Screen Application Lock Screen Overlay */}
       <LockScreen />
 
-      {/* Background Update Notification Banner & Shell Center */}
-      <UpdateBanner />
-
-      {/* Top Navbar with integrated search bar & dropdown */}
-      <Navbar
-        onMenuToggle={() => setMobileSidebarOpen(true)}
-        onQuickCapture={() => setQuickCaptureOpen(true)}
-        username={username}
-        email={email}
-      />
-
-      {/* Main Layout Area */}
-      <div className="flex flex-1 relative w-full overflow-hidden">
-        {/* Mobile Sidebar overlay */}
-        <MobileSidebar
-          isOpen={mobileSidebarOpen}
-          onClose={() => setMobileSidebarOpen(false)}
-        />
-
-        {/* Desktop Sidebar (Left) */}
+      {/* Desktop Persistent Sidebar */}
+      <div className="hidden md:flex shrink-0 h-full">
         <Sidebar
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebar}
         />
+      </div>
 
-        {/* Scrollable Content (Center/Right) */}
-        <main className="flex-1 overflow-y-auto h-[calc(100vh-65px)] relative">
+      {/* Mobile Drawer Sidebar */}
+      <MobileSidebar
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+      />
+
+      {/* Main Workspace Frame */}
+      <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden bg-background">
+        {/* Top Navigation Bar */}
+        <Navbar
+          onMenuToggle={() => setMobileSidebarOpen(true)}
+          onQuickCapture={() => setQuickCaptureOpen(true)}
+          username={username}
+          email={email}
+        />
+
+        {/* Dynamic Background Update Notification Banner */}
+        <UpdateBanner />
+
+        {/* Scrollable View Container */}
+        <main className="flex-1 min-h-0 w-full overflow-y-auto bg-background/50">
           {children}
         </main>
       </div>
 
-      {/* Global Keyboard Shortcuts Cheatsheet Modal */}
-      <KeyboardShortcutsModal
-        isOpen={shortcutsModalOpen}
-        onClose={() => setShortcutsModalOpen(false)}
-      />
-
-      {/* Global Quick Capture Modal */}
-      <QuickCaptureModal
-        isOpen={quickCaptureOpen}
-        onClose={() => setQuickCaptureOpen(false)}
-        onSuccess={(promptId) => {
-          navigate(`/prompts/${promptId}`);
-        }}
-      />
-
-      {/* Native About AI Prompt Library Modal */}
+      {/* Modals */}
       <AboutModal
         isOpen={aboutModalOpen}
         onClose={() => setAboutModalOpen(false)}
-        onCheckForUpdates={() => {
-          window.dispatchEvent(new CustomEvent("app:check-for-updates"));
-        }}
+      />
+
+      <QuickCaptureModal
+        isOpen={quickCaptureOpen}
+        onClose={() => setQuickCaptureOpen(false)}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
       />
     </div>
   );

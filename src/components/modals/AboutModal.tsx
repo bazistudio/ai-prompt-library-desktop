@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sparkles, RefreshCw, X, ShieldCheck } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -11,18 +12,25 @@ interface AboutModalProps {
 
 export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalProps) {
   const [appInfo, setAppInfo] = useState<{ version: string; platform: string; arch: string }>({
-    version: "1.0.2",
+    version: "2.0.0",
     platform: "win32",
     arch: "x64",
   });
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.electronAPI?.getAppInfo) {
-      window.electronAPI.getAppInfo().then((info) => {
-        if (info) setAppInfo(info);
-      }).catch(() => {});
-    }
+    if (!isOpen) return;
+
+    // Fetch dynamic Tauri version
+    getVersion()
+      .then((ver) => {
+        if (ver) {
+          setAppInfo((prev) => ({ ...prev, version: ver }));
+        }
+      })
+      .catch(() => {
+        setAppInfo((prev) => ({ ...prev, version: "2.0.0" }));
+      });
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -31,8 +39,8 @@ export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalPro
     setCheckingUpdate(true);
     if (onCheckForUpdates) {
       onCheckForUpdates();
-    } else if (typeof window !== "undefined" && window.electronAPI?.checkForUpdates) {
-      window.electronAPI.checkForUpdates();
+    } else {
+      window.dispatchEvent(new CustomEvent("app:check-for-updates"));
     }
     setTimeout(() => setCheckingUpdate(false), 2000);
   };
@@ -83,7 +91,7 @@ export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalPro
         <div className="space-y-2.5 text-xs">
           <div className="flex justify-between items-center py-1">
             <span className="text-muted-foreground font-medium">Application Version</span>
-            <span className="font-mono font-bold text-foreground">{appInfo.version}</span>
+            <span className="font-mono font-bold text-foreground">v{appInfo.version}</span>
           </div>
 
           <div className="flex justify-between items-center py-1">
@@ -122,7 +130,7 @@ export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalPro
 
             <button
               onClick={onClose}
-              className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer"
+              className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
             >
               Close
             </button>

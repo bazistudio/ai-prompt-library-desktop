@@ -126,6 +126,8 @@ fn main() {
             // 1. File Menu
             let file_menu = SubmenuBuilder::new(handle, "File")
                 .item(&MenuItem::with_id(handle, "new_prompt", "New Prompt", true, Some("CmdOrCtrl+N"))?)
+                .item(&MenuItem::with_id(handle, "save_prompt", "Save Prompt", true, Some("CmdOrCtrl+S"))?)
+                .item(&MenuItem::with_id(handle, "edit_prompt", "Edit / New Version", true, Some("CmdOrCtrl+E"))?)
                 .item(&MenuItem::with_id(handle, "quick_capture", "Quick Capture", true, Some("CmdOrCtrl+Shift+N"))?)
                 .item(&MenuItem::with_id(handle, "open_library", "Open Library", true, Some("CmdOrCtrl+O"))?)
                 .separator()
@@ -150,23 +152,18 @@ fn main() {
             // 3. View Menu
             let view_menu = SubmenuBuilder::new(handle, "View")
                 .item(&MenuItem::with_id(handle, "view_dashboard", "Dashboard", true, None::<&str>)?)
-                .item(&MenuItem::with_id(handle, "view_library", "Prompt Library", true, None::<&str>)?)
                 .item(&MenuItem::with_id(handle, "view_workflows", "Workflows", true, None::<&str>)?)
                 .item(&MenuItem::with_id(handle, "view_settings", "Settings", true, None::<&str>)?)
                 .separator()
                 .item(&MenuItem::with_id(handle, "command_palette", "Command Palette", true, Some("CmdOrCtrl+K"))?)
                 .item(&MenuItem::with_id(handle, "toggle_sidebar", "Toggle Sidebar", true, Some("CmdOrCtrl+B"))?)
-                .fullscreen()
+                .item(&MenuItem::with_id(handle, "toggle_fullscreen", "Toggle Fullscreen", true, Some("F11"))?)
                 .item(&MenuItem::with_id(handle, "toggle_theme", "Toggle Theme", true, None::<&str>)?)
                 .build()?;
 
             // 4. Prompt Menu
             let prompt_menu = SubmenuBuilder::new(handle, "Prompt")
-                .item(&MenuItem::with_id(handle, "prompt_new", "Create New Prompt", true, Some("CmdOrCtrl+N"))?)
                 .item(&MenuItem::with_id(handle, "prompt_favorites", "View Favorites", true, None::<&str>)?)
-                .item(&MenuItem::with_id(handle, "prompt_quick_capture", "Quick Capture", true, Some("CmdOrCtrl+Shift+N"))?)
-                .item(&MenuItem::with_id(handle, "prompt_version_history", "View Version History", true, None::<&str>)?)
-                .item(&MenuItem::with_id(handle, "prompt_delete", "Delete Prompt", true, None::<&str>)?)
                 .build()?;
 
             // 5. Workspace Menu
