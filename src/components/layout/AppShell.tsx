@@ -286,38 +286,36 @@ export function AppShell({ children, session }: AppShellProps) {
   }, [navigate, theme]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground select-none">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground select-none">
       {/* Full-Screen Application Lock Screen Overlay */}
       <LockScreen />
 
-      {/* Desktop Persistent Sidebar */}
-      <div className="hidden md:flex shrink-0 h-full">
+      {/* Full-Width Top Navigation Bar Across Entire Screen */}
+      <Navbar
+        onMenuToggle={() => setMobileSidebarOpen(true)}
+        onQuickCapture={() => setQuickCaptureOpen(true)}
+        username={username}
+        email={email}
+      />
+
+      {/* Dynamic Background Update Notification Banner */}
+      <UpdateBanner />
+
+      {/* Main Workspace Frame (Sidebar on Left + Content on Right) */}
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
+        {/* Desktop Persistent Sidebar */}
         <Sidebar
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebar}
         />
-      </div>
 
-      {/* Mobile Drawer Sidebar */}
-      <MobileSidebar
-        isOpen={mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-      />
-
-      {/* Main Workspace Frame */}
-      <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden bg-background">
-        {/* Top Navigation Bar */}
-        <Navbar
-          onMenuToggle={() => setMobileSidebarOpen(true)}
-          onQuickCapture={() => setQuickCaptureOpen(true)}
-          username={username}
-          email={email}
+        {/* Mobile Drawer Sidebar */}
+        <MobileSidebar
+          isOpen={mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
         />
 
-        {/* Dynamic Background Update Notification Banner */}
-        <UpdateBanner />
-
-        {/* Scrollable View Container */}
+        {/* Scrollable Main View Container */}
         <main className="flex-1 min-h-0 w-full overflow-y-auto bg-background/50">
           {children}
         </main>

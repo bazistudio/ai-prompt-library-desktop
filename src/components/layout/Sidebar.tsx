@@ -24,7 +24,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
 
   if (isCollapsed) {
     return (
-      <aside className="w-[68px] border-r border-border bg-card py-3 px-2 hidden md:flex flex-col items-center justify-between h-[calc(100vh-65px)] sticky top-[65px] shrink-0 z-30 transition-all duration-200">
+      <aside className="w-[68px] border-r border-border bg-card py-3 px-2 hidden md:flex flex-col items-center justify-between h-full shrink-0 z-30 transition-all duration-200">
         {/* Top: Expand Toggle & Quick Actions */}
         <div className="w-full flex flex-col items-center gap-3">
           <button
@@ -114,7 +114,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   }
 
   return (
-    <aside className="w-64 border-r border-border bg-card px-3 py-2.5 hidden md:flex flex-col h-[calc(100vh-65px)] sticky top-[65px] shrink-0 overflow-hidden z-30 transition-all duration-200">
+    <aside className="w-64 border-r border-border bg-card px-3 py-2.5 hidden md:flex flex-col h-full shrink-0 overflow-hidden z-30 transition-all duration-200">
       {/* 1. Locked Top: Dashboard Link & Collapse Header */}
       <div className="shrink-0 flex items-center justify-between pb-1.5 mb-1.5 border-b border-border/40">
         <Link
