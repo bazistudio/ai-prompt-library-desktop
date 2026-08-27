@@ -1,6 +1,6 @@
 [package]
 name = "ai-prompt-library"
-version = "1.0.9"
+version = "2.0.0"
 description = "Private AI Prompt Workspace by Bazi Studio"
 authors = ["Bazi Studio"]
 edition = "2021"

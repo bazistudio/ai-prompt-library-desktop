@@ -51,32 +51,8 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Z3kX48QO5W5M7o4Qv9FpZ5v4iE9
 bL4WkQ2RzXw9bN8vP2qR4sT7uV1wX3yZ6aB9cD2eF5gH8jK1mN4pQ7rS9A==
 -----END PUBLIC KEY-----`;
 
-// Pre-packaged demo / trial keys with verifiable signature structure for testing
-const SAMPLE_VALID_KEYS: Record<string, LicensePayload> = {
-  "PRO-OFFLINE-STUDIO-2026": {
-    licenseKey: "PRO-OFFLINE-STUDIO-2026",
-    licensee: "Professional Prompt Engineer",
-    licenseeEmail: "pro.engineer@example.com",
-    edition: "pro",
-    issuedAt: 1770000000000,
-    expiresAt: null, // Lifetime Pro
-    maxSeats: 1,
-    features: ["core_prompt_library", "multilingual_markdown", "workspaces_and_projects", "quick_capture_tray", "batch_export_import"],
-  },
-  "COMMERCIAL-ENTERPRISE-2026": {
-    licenseKey: "COMMERCIAL-ENTERPRISE-2026",
-    licensee: "Commercial Organization",
-    licenseeEmail: "team@enterprise.org",
-    edition: "commercial",
-    issuedAt: 1770000000000,
-    expiresAt: 2085955200000, // Valid through 2036
-    maxSeats: 10,
-    features: ["core_prompt_library", "multilingual_markdown", "workspaces_and_projects", "quick_capture_tray", "batch_export_import", "commercial_use_rights", "priority_offline_support"],
-  },
-};
-
 /**
- * Default Free Tier License Info
+ * Default Free Tier License Info (Community Edition)
  */
 export const DEFAULT_FREE_LICENSE: LicenseInfo = {
   status: "UNLICENSED",
@@ -92,7 +68,8 @@ export const DEFAULT_FREE_LICENSE: LicenseInfo = {
 };
 
 /**
- * Verify a raw license string or token offline
+ * Verify a raw license certificate string or token offline.
+ * Requires a cryptographically valid 3-part signed certificate (HEADER.PAYLOAD.SIGNATURE).
  */
 export function verifyLicenseCertificate(rawInput: string): {
   valid: boolean;
@@ -104,61 +81,32 @@ export function verifyLicenseCertificate(rawInput: string): {
     return { valid: false, info: DEFAULT_FREE_LICENSE, error: "License key cannot be empty." };
   }
 
-  // 1. Check known formatted keys (e.g. Pro or Commercial activation key)
-  if (SAMPLE_VALID_KEYS[cleanInput]) {
-    const payload = SAMPLE_VALID_KEYS[cleanInput];
-    return {
-      valid: true,
-      info: {
-        status: "ACTIVE",
-        edition: payload.edition,
-        licensee: payload.licensee,
-        licenseeEmail: payload.licenseeEmail,
-        licenseKey: payload.licenseKey,
-        issuedAt: payload.issuedAt,
-        expiresAt: payload.expiresAt,
-        isLifetime: payload.expiresAt === null,
-        daysRemaining: payload.expiresAt ? Math.max(0, Math.ceil((payload.expiresAt - Date.now()) / (1000 * 60 * 60 * 24))) : null,
-        features: payload.features || DEFAULT_FREE_LICENSE.features,
-      },
-    };
-  }
-
-  // 2. Parse Armored Token / Signed Base64 Certificate: HEADER.PAYLOAD.SIGNATURE
   try {
     let payload: LicensePayload | null = null;
     let signatureVerified = false;
 
-    if (cleanInput.startsWith("ey") || cleanInput.includes(".")) {
+    // Cryptographic Base64URL token: HEADER.PAYLOAD.SIGNATURE
+    if (cleanInput.includes(".")) {
       const parts = cleanInput.split(".");
-      if (parts.length >= 2) {
-        const payloadJson = Buffer.from(parts[1] || parts[0], "base64url").toString("utf8");
-        payload = JSON.parse(payloadJson);
-        // Signature verification step against embedded public key
-        if (parts.length >= 3 && parts[2]) {
-          try {
-            const verifier = crypto.createVerify("SHA256");
-            verifier.update(`${parts[0]}.${parts[1]}`);
-            signatureVerified = verifier.verify(EMBEDDED_PUBLIC_KEY, parts[2], "base64url");
-          } catch {
-            // Fallback for custom formatted signatures
-            signatureVerified = true;
-          }
-        } else {
-          signatureVerified = true;
+      if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+        try {
+          const payloadJson = Buffer.from(parts[1], "base64url").toString("utf8");
+          payload = JSON.parse(payloadJson);
+
+          const verifier = crypto.createVerify("SHA256");
+          verifier.update(`${parts[0]}.${parts[1]}`);
+          signatureVerified = verifier.verify(EMBEDDED_PUBLIC_KEY, parts[2], "base64url");
+        } catch {
+          signatureVerified = false;
         }
       }
-    } else if (cleanInput.startsWith("{")) {
-      const parsed = JSON.parse(cleanInput);
-      payload = parsed.payload || parsed;
-      signatureVerified = true;
     }
 
-    if (!payload || !payload.edition) {
+    if (!signatureVerified || !payload || !payload.edition) {
       return {
         valid: false,
         info: { ...DEFAULT_FREE_LICENSE, status: "INVALID" },
-        error: "Invalid license format. Please verify your activation token.",
+        error: "Invalid license certificate or unverified signature. Please enter a valid signed token.",
       };
     }
 
@@ -188,7 +136,7 @@ export function verifyLicenseCertificate(rawInput: string): {
       : null;
 
     return {
-      valid: signatureVerified,
+      valid: true,
       info: {
         status: "ACTIVE",
         edition: payload.edition,
@@ -206,7 +154,7 @@ export function verifyLicenseCertificate(rawInput: string): {
     return {
       valid: false,
       info: { ...DEFAULT_FREE_LICENSE, status: "INVALID" },
-      error: "Could not parse or verify license token: " + (err.message || "Unknown error"),
+      error: "Could not parse or verify license certificate: " + (err.message || "Unknown error"),
     };
   }
 }
@@ -216,7 +164,7 @@ export function verifyLicenseCertificate(rawInput: string): {
  */
 export function hasEntitlement(license: LicenseInfo | null | undefined, feature: string): boolean {
   if (!license || license.status !== "ACTIVE") {
-    // Free tier defaults
+    // Free community tier defaults
     return DEFAULT_FREE_LICENSE.features.includes(feature);
   }
   return license.features.includes(feature);

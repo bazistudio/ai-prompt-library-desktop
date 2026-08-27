@@ -313,32 +313,12 @@ export function LicenseSettings() {
               type="text"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="e.g. PRO-OFFLINE-STUDIO-2026 or signed certificate"
+              placeholder="Enter your cryptographic activation token (HEADER.PAYLOAD.SIGNATURE)"
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Test Activation:</span>
-              <button
-                type="button"
-                onClick={() => handleActivate(undefined, "PRO-OFFLINE-STUDIO-2026")}
-                disabled={activating}
-                className="px-2.5 py-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 text-[11px] font-semibold hover:bg-indigo-500/20 transition-colors cursor-pointer"
-              >
-                Pro Key
-              </button>
-              <button
-                type="button"
-                onClick={() => handleActivate(undefined, "COMMERCIAL-ENTERPRISE-2026")}
-                disabled={activating}
-                className="px-2.5 py-1 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-500 text-[11px] font-semibold hover:bg-amber-500/20 transition-colors cursor-pointer"
-              >
-                Commercial Key
-              </button>
-            </div>
-
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
             <button
               type="submit"
               disabled={activating || !keyInput.trim()}

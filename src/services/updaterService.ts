@@ -35,12 +35,12 @@ class UpdaterService {
    */
   public async getCurrentAppVersion(): Promise<string> {
     if (!this.isTauriRuntime()) {
-      return "1.0.2";
+      return "2.0.0";
     }
     try {
       return await getVersion();
     } catch {
-      return "1.0.2";
+      return "2.0.0";
     }
   }
 
