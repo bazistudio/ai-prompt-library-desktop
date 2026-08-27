@@ -218,6 +218,18 @@ export async function createPrompt(input: CreatePromptInput): Promise<{ success:
     created_at: now,
   };
 
+  let subcategoryName: string | null = null;
+  if (input.subcategoryId) {
+    try {
+      const rawSub = localStorage.getItem("ai_prompt_library_subcategories_v1");
+      if (rawSub) {
+        const parsed = JSON.parse(rawSub);
+        const found = parsed.find((s: any) => s.id === input.subcategoryId);
+        if (found) subcategoryName = found.name;
+      }
+    } catch {}
+  }
+
   const newPrompt: PromptItem = {
     id,
     title: input.title.trim(),
@@ -225,6 +237,7 @@ export async function createPrompt(input: CreatePromptInput): Promise<{ success:
     category: input.category || "General",
     category_id: input.categoryId,
     subcategory_id: input.subcategoryId || null,
+    subcategory_name: subcategoryName,
     project_id: input.projectId || "proj_default",
     is_favorite: false,
     is_archived: false,
@@ -364,19 +377,39 @@ export async function updatePromptMeta(input: UpdateMetaInput): Promise<{ succes
     throw new Error("Prompt not found.");
   }
 
-  const prompt = prompts[index];
+  const targetPrompt = prompts[index];
   const now = Date.now();
+
+  let subcategoryName = targetPrompt.subcategory_name;
+  if (input.subcategoryId !== undefined) {
+    if (input.subcategoryId) {
+      try {
+        const rawSub = localStorage.getItem("ai_prompt_library_subcategories_v1");
+        if (rawSub) {
+          const parsed = JSON.parse(rawSub);
+          const found = parsed.find((s: any) => s.id === input.subcategoryId);
+          subcategoryName = found ? found.name : null;
+        }
+      } catch {
+        subcategoryName = null;
+      }
+    } else {
+      subcategoryName = null;
+    }
+  }
+
   prompts[index] = {
-    ...prompt,
-    title: input.title !== undefined ? input.title.trim() : prompt.title,
-    description: input.description !== undefined ? input.description.trim() : prompt.description,
-    category: input.category !== undefined ? input.category : prompt.category,
-    category_id: input.categoryId !== undefined ? input.categoryId : prompt.category_id,
-    subcategory_id: input.subcategoryId !== undefined ? input.subcategoryId : prompt.subcategory_id,
-    project_id: input.projectId !== undefined ? input.projectId : prompt.project_id,
-    tags: input.tags !== undefined ? input.tags : prompt.tags,
-    text_direction: input.textDirection !== undefined ? input.textDirection : prompt.text_direction,
-    language: input.language !== undefined ? input.language : prompt.language,
+    ...targetPrompt,
+    title: input.title !== undefined ? input.title.trim() : targetPrompt.title,
+    description: input.description !== undefined ? input.description.trim() : targetPrompt.description,
+    category: input.category !== undefined ? input.category : targetPrompt.category,
+    category_id: input.categoryId !== undefined ? input.categoryId : targetPrompt.category_id,
+    subcategory_id: input.subcategoryId !== undefined ? input.subcategoryId : targetPrompt.subcategory_id,
+    subcategory_name: subcategoryName,
+    project_id: input.projectId !== undefined ? input.projectId : targetPrompt.project_id,
+    tags: input.tags !== undefined ? input.tags : targetPrompt.tags,
+    text_direction: input.textDirection !== undefined ? input.textDirection : targetPrompt.text_direction,
+    language: input.language !== undefined ? input.language : targetPrompt.language,
     updated_at: now,
   };
 

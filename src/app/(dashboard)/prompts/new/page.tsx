@@ -253,7 +253,7 @@ function CreatePromptContent() {
               <Folder className="h-3.5 w-3.5" />
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="bg-transparent text-primary font-bold text-xs outline-none cursor-pointer pr-1"
               >
                 {categories.map((cat) => (
@@ -264,6 +264,29 @@ function CreatePromptContent() {
               </select>
             </div>
           </div>
+
+          {/* Dynamic Subcategory Dropdown (if category has subcategories) */}
+          {availableSubcategories.length > 0 && (
+            <div className="relative flex items-center">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary text-foreground border border-border text-xs font-semibold shadow-2xs">
+                <FolderTree className="h-3.5 w-3.5 text-primary" />
+                <select
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  className="bg-transparent text-foreground font-semibold text-xs outline-none cursor-pointer pr-1"
+                >
+                  <option value="" className="bg-popover text-muted-foreground">
+                    Subcategory (Optional)
+                  </option>
+                  {availableSubcategories.map((subcat) => (
+                    <option key={subcat.id} value={subcat.id} className="bg-popover text-foreground">
+                      {subcat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Version Pills Bar (Mockup / Active version) */}
           <div className="flex items-center gap-1.5">

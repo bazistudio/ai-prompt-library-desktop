@@ -1,11 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { SettingsSection } from "./SettingsSection";
 import { SettingRow } from "./SettingRow";
-import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle, Eye, EyeOff, Camera, Upload, Trash2 } from "lucide-react";
+import {
+  User,
+  Shield,
+  KeyRound,
+  Lock,
+  RefreshCw,
+  Copy,
+  Check,
+  Download,
+  AlertCircle,
+  PlusCircle,
+  Eye,
+  EyeOff,
+  Camera,
+  Upload,
+  Trash2,
+  ZoomIn,
+  Move,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Building,
+  UserCheck,
+  Save,
+} from "lucide-react";
 
 import { SecurityStatusData } from "@/types/electron";
+import {
+  fetchLicenseStatus,
+  activateLicense,
+  deactivateLicense,
+} from "@/services/licensing/licenseService";
+import { LicenseInfo, DEFAULT_FREE_LICENSE } from "@/services/licensing/licenseVerifier";
 
 interface UserProfile {
   id: string;
@@ -16,9 +46,36 @@ interface UserProfile {
 }
 
 export function AccountSettings() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    try {
+      const stored = localStorage.getItem("ai_prompt_library_user_profile");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          id: "local",
+          username: parsed.username || "Developer",
+          email: parsed.email || "developer@example.com",
+          status: "Active",
+        };
+      }
+    } catch {}
+    return {
+      id: "local",
+      username: "Developer",
+      email: "developer@example.com",
+      status: "Active",
+    };
+  });
+
+  const [editUsername, setEditUsername] = useState(profile.username);
+  const [editEmail, setEditEmail] = useState(profile.email);
+  const [profileSavedMsg, setProfileSavedMsg] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Security Status
   const [secStatus, setSecStatus] = useState<SecurityStatusData | null>(null);
+
+  // Avatar Management & Adjuster Modal
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
       return localStorage.getItem("ai_prompt_library_user_avatar");
@@ -27,12 +84,152 @@ export function AccountSettings() {
     }
   });
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [rawAvatarSrc, setRawAvatarSrc] = useState<string | null>(null);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+
+  // Password Modal State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // PIN Modal State
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinPassword, setPinPassword] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [showPinPass, setShowPinPass] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Remove Password Modal State
+  const [showRemovePasswordModal, setShowRemovePasswordModal] = useState(false);
+  const [removePasswordInput, setRemovePasswordInput] = useState("");
+  const [removePasswordLoading, setRemovePasswordLoading] = useState(false);
+  const [removePasswordMsg, setRemovePasswordMsg] = useState<{ type: "error"; text: string } | null>(null);
+
+  // Remove PIN Modal State
+  const [showRemovePinModal, setShowRemovePinModal] = useState(false);
+  const [removePinInput, setRemovePinInput] = useState("");
+  const [removePinLoading, setRemovePinLoading] = useState(false);
+  const [removePinMsg, setRemovePinMsg] = useState<{ type: "error"; text: string } | null>(null);
+
+  // Recovery Key Display Modal
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+
+  // License State in Account Settings
+  const [license, setLicense] = useState<LicenseInfo>(DEFAULT_FREE_LICENSE);
+  const [licenseKeyInput, setLicenseKeyInput] = useState("");
+  const [activatingLicense, setActivatingLicense] = useState(false);
+  const [licenseMsg, setLicenseMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [guardWarning, setGuardWarning] = useState<string | null>(null);
+
+  // Fetch unified security status
+  const fetchSecurityStatus = async () => {
+    if (typeof window !== "undefined" && window.electronAPI?.security) {
+      try {
+        const res = await window.electronAPI.security.getStatus();
+        setSecStatus(res);
+        return;
+      } catch (err) {
+        console.error("Failed to get security status from electron:", err);
+      }
+    }
+
+    // Local / Desktop Fallback
+    if (typeof window !== "undefined") {
+      const hasPass = Boolean(
+        localStorage.getItem("appLockPasswordPlain") ||
+        localStorage.getItem("appLockPassword") ||
+        localStorage.getItem("appLockPasswordHash")
+      );
+      const hasPin = Boolean(
+        localStorage.getItem("appLockPinPlain") ||
+        localStorage.getItem("appLockPin") ||
+        localStorage.getItem("appLockPinHash")
+      );
+      const enabled = localStorage.getItem("appLockEnabled") === "true" || (hasPass || hasPin);
+      const isLocked = localStorage.getItem("ai_prompt_library_is_locked") === "true";
+      const method = (localStorage.getItem("appLockMethod") as "password" | "pin") || (hasPin && !hasPass ? "pin" : "password");
+      const hasKey = Boolean(localStorage.getItem("appLockRecoveryKey"));
+
+      setSecStatus({
+        enabled: enabled && (hasPass || hasPin),
+        method,
+        requireStartup: localStorage.getItem("appLockRequireStartup") === "true",
+        isLocked,
+        hasPassword: hasPass,
+        hasPin,
+        hasRecoveryKey: hasKey,
+        hasSecurityQuestions: false,
+        lockoutRemainingSeconds: 0,
+      });
+    }
+  };
+
+  const loadLicenseData = async () => {
+    try {
+      const data = await fetchLicenseStatus();
+      setLicense(data);
+    } catch (err) {
+      console.error("Failed to load license:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSecurityStatus();
+    loadLicenseData();
+
+    const handleLockStateChange = () => fetchSecurityStatus();
+    window.addEventListener("app:lock-state-changed", handleLockStateChange);
+    window.addEventListener("storage", handleLockStateChange);
+    return () => {
+      window.removeEventListener("app:lock-state-changed", handleLockStateChange);
+      window.removeEventListener("storage", handleLockStateChange);
+    };
+  }, []);
+
+  // Save User Profile Information
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = {
+      ...profile,
+      username: editUsername.trim() || "Developer",
+      email: editEmail.trim() || "developer@example.com",
+    };
+    setProfile(updated);
+    try {
+      localStorage.setItem("ai_prompt_library_user_profile", JSON.stringify({
+        username: updated.username,
+        email: updated.email,
+      }));
+      window.dispatchEvent(new CustomEvent("app:user-profile-updated", { detail: updated }));
+      setProfileSavedMsg(true);
+      setTimeout(() => setProfileSavedMsg(false), 2500);
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+    }
+  };
+
+  // Avatar Selection & Adjuster Handlers
+  const handleAvatarFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be under 5MB");
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Image size should be under 8MB");
       return;
     }
 
@@ -40,16 +237,62 @@ export function AccountSettings() {
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        setAvatarUrl(dataUrl);
-        try {
-          localStorage.setItem("ai_prompt_library_user_avatar", dataUrl);
-          window.dispatchEvent(new CustomEvent("user-avatar-updated", { detail: dataUrl }));
-        } catch (err) {
-          console.error("Failed to save avatar to localStorage:", err);
-        }
+        setRawAvatarSrc(dataUrl);
+        setZoom(1);
+        setPanX(0);
+        setPanY(0);
+        setShowAdjustModal(true);
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Render Cropped & Position-Adjusted Avatar to Canvas
+  const handleApplyAdjustedAvatar = () => {
+    if (!rawAvatarSrc) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const size = 300;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Draw adjusted image onto square canvas
+      ctx.clearRect(0, 0, size, size);
+
+      const aspect = img.width / img.height;
+      let drawWidth = size * zoom;
+      let drawHeight = size * zoom;
+
+      if (aspect > 1) {
+        drawHeight = (size / aspect) * zoom;
+      } else {
+        drawWidth = size * aspect * zoom;
+      }
+
+      const drawX = (size - drawWidth) / 2 + panX * 2;
+      const drawY = (size - drawHeight) / 2 + panY * 2;
+
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+      const finalDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      setAvatarUrl(finalDataUrl);
+      setShowAdjustModal(false);
+      setRawAvatarSrc(null);
+
+      try {
+        localStorage.setItem("ai_prompt_library_user_avatar", finalDataUrl);
+        window.dispatchEvent(new CustomEvent("user-avatar-updated", { detail: finalDataUrl }));
+      } catch (err) {
+        console.error("Failed to save avatar:", err);
+      }
+    };
+    img.src = rawAvatarSrc;
   };
 
   const handleRemoveAvatar = () => {
@@ -62,107 +305,23 @@ export function AccountSettings() {
     }
   };
 
-  // Password Modal State (Create vs Change)
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [passwordLoading, setPasswordLoading] = useState(false);
-
-  // Remove Password Modal State
-  const [showRemovePasswordModal, setShowRemovePasswordModal] = useState(false);
-  const [removePasswordInput, setRemovePasswordInput] = useState("");
-  const [showRemovePasswordInput, setShowRemovePasswordInput] = useState(false);
-  const [removePasswordMsg, setRemovePasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [removePasswordLoading, setRemovePasswordLoading] = useState(false);
-
-  // PIN Setup Modal State
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinPassword, setPinPassword] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [showPinPassword, setShowPinPassword] = useState(false);
-  const [showNewPin, setShowNewPin] = useState(false);
-  const [showConfirmPin, setShowConfirmPin] = useState(false);
-  const [pinMsg, setPinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [pinLoading, setPinLoading] = useState(false);
-
-  // Remove PIN Modal State
-  const [showRemovePinModal, setShowRemovePinModal] = useState(false);
-  const [removePinInput, setRemovePinInput] = useState("");
-  const [showRemovePinInput, setShowRemovePinInput] = useState(false);
-  const [removePinMsg, setRemovePinMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [removePinLoading, setRemovePinLoading] = useState(false);
-
-  // Recovery Key Display Modal
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
-
-  // Guard warning state when trying to turn lock ON without credentials
-  const [guardWarning, setGuardWarning] = useState<string | null>(null);
-
-  const fetchSecurityStatus = async () => {
-    if (typeof window !== "undefined" && window.electronAPI?.security) {
-      try {
-        const res = await window.electronAPI.security.getStatus();
-        setSecStatus(res);
-      } catch (err) {
-        console.error("Failed to get security status:", err);
-      }
-    }
-  };
-
-  useEffect(() => {
-    const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI);
-    if (isElectron) {
-      setProfile({
-        id: "local",
-        username: "Local Workspace",
-        email: "Offline Mode",
-        status: "Active",
-      });
-      setLoading(false);
-    } else {
-      fetch("/api/auth/me")
-        .then((res) => {
-          const contentType = res.headers.get("content-type");
-          if (res.ok && contentType && contentType.includes("application/json")) {
-            return res.json();
-          }
-          return null;
-        })
-        .then((data) => {
-          if (data && data.success && data.user) {
-            setProfile(data.user);
-          }
-        })
-        .catch(() => { })
-        .finally(() => setLoading(false));
-    }
-
-    fetchSecurityStatus();
-  }, []);
-
+  // Lock & Security Handlers
   const handleToggleLock = async (targetEnabled: boolean) => {
     setGuardWarning(null);
 
-    // Guard: Application Lock cannot be enabled until a password or PIN is configured
     if (targetEnabled && (!secStatus?.hasPassword && !secStatus?.hasPin)) {
-      setGuardWarning("You need to create an application password first before enabling Application Lock.");
+      setGuardWarning("You need to configure an application password or PIN first before enabling Application Lock.");
       setShowPasswordModal(true);
       return;
     }
 
     if (window.electronAPI?.security) {
       await window.electronAPI.security.toggleLock(targetEnabled);
-      await fetchSecurityStatus();
+    } else {
+      localStorage.setItem("appLockEnabled", targetEnabled ? "true" : "false");
+      window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
     }
+    await fetchSecurityStatus();
   };
 
   const handleSetLockMethod = async (method: "password" | "pin") => {
@@ -172,8 +331,11 @@ export function AccountSettings() {
     }
     if (window.electronAPI?.security) {
       await window.electronAPI.security.setLockMethod(method);
-      await fetchSecurityStatus();
+    } else {
+      localStorage.setItem("appLockMethod", method);
+      window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
     }
+    await fetchSecurityStatus();
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -191,8 +353,11 @@ export function AccountSettings() {
       return;
     }
     if (!isCreating && !currentPassword) {
-      setPasswordMsg({ type: "error", text: "Current password is required to change your password." });
-      return;
+      const storedPass = localStorage.getItem("appLockPasswordPlain") || localStorage.getItem("appLockPassword");
+      if (storedPass && storedPass !== currentPassword) {
+        setPasswordMsg({ type: "error", text: "Current password does not match." });
+        return;
+      }
     }
 
     setPasswordLoading(true);
@@ -203,19 +368,40 @@ export function AccountSettings() {
           newPassword
         );
         if (res.success) {
-          setPasswordMsg({
-            type: "success",
-            text: isCreating ? "Application password created successfully!" : "Password changed successfully!",
-          });
+          setPasswordMsg({ type: "success", text: isCreating ? "Password created successfully!" : "Password changed successfully!" });
           setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
-          setGuardWarning(null);
-          setTimeout(() => setShowPasswordModal(false), 1200);
+          setTimeout(() => setShowPasswordModal(false), 1000);
           await fetchSecurityStatus();
         } else {
           setPasswordMsg({ type: "error", text: res.error || "Failed to update password." });
         }
+      } else {
+        // Local persistence
+        localStorage.setItem("appLockPasswordPlain", newPassword);
+        localStorage.setItem("appLockPassword", newPassword);
+        localStorage.setItem("appLockPasswordHash", "local_hash_" + Date.now());
+        localStorage.setItem("appLockEnabled", "true");
+        localStorage.setItem("appLockMethod", "password");
+
+        // Generate initial recovery key if not exists
+        if (!localStorage.getItem("appLockRecoveryKey")) {
+          const sampleKey = "APL7-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+            Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+            Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+            Math.random().toString(36).substring(2, 6).toUpperCase();
+          localStorage.setItem("appLockRecoveryKey", sampleKey);
+        }
+
+        setPasswordMsg({ type: "success", text: isCreating ? "Password created and activated!" : "Password changed successfully!" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setGuardWarning(null);
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        setTimeout(() => setShowPasswordModal(false), 1000);
+        await fetchSecurityStatus();
       }
     } catch (err: any) {
       setPasswordMsg({ type: "error", text: err?.message || "An error occurred." });
@@ -246,11 +432,25 @@ export function AccountSettings() {
           setPinPassword("");
           setNewPin("");
           setConfirmPin("");
-          setTimeout(() => setShowPinModal(false), 1200);
+          setTimeout(() => setShowPinModal(false), 1000);
           await fetchSecurityStatus();
         } else {
           setPinMsg({ type: "error", text: res.error || "Failed to setup PIN." });
         }
+      } else {
+        localStorage.setItem("appLockPinPlain", newPin);
+        localStorage.setItem("appLockPin", newPin);
+        localStorage.setItem("appLockPinHash", "local_pin_" + Date.now());
+        localStorage.setItem("appLockMethod", "pin");
+        localStorage.setItem("appLockEnabled", "true");
+
+        setPinMsg({ type: "success", text: "6-Digit PIN configured and active!" });
+        setPinPassword("");
+        setNewPin("");
+        setConfirmPin("");
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        setTimeout(() => setShowPinModal(false), 1000);
+        await fetchSecurityStatus();
       }
     } catch (err: any) {
       setPinMsg({ type: "error", text: err?.message || "Error configuring PIN." });
@@ -273,13 +473,28 @@ export function AccountSettings() {
       if (window.electronAPI?.security) {
         const res = await window.electronAPI.security.removePassword(removePasswordInput);
         if (res.success) {
-          setRemovePasswordMsg({ type: "success", text: "Password removed successfully!" });
           setRemovePasswordInput("");
-          setTimeout(() => setShowRemovePasswordModal(false), 1200);
+          setShowRemovePasswordModal(false);
           await fetchSecurityStatus();
         } else {
           setRemovePasswordMsg({ type: "error", text: res.error || "Failed to remove password." });
         }
+      } else {
+        const stored = localStorage.getItem("appLockPasswordPlain") || localStorage.getItem("appLockPassword");
+        if (stored && stored !== removePasswordInput) {
+          setRemovePasswordMsg({ type: "error", text: "Incorrect password." });
+          return;
+        }
+        localStorage.removeItem("appLockPasswordPlain");
+        localStorage.removeItem("appLockPassword");
+        localStorage.removeItem("appLockPasswordHash");
+        if (!localStorage.getItem("appLockPinPlain")) {
+          localStorage.setItem("appLockEnabled", "false");
+        }
+        setRemovePasswordInput("");
+        setShowRemovePasswordModal(false);
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        await fetchSecurityStatus();
       }
     } catch (err: any) {
       setRemovePasswordMsg({ type: "error", text: err?.message || "An error occurred." });
@@ -293,7 +508,7 @@ export function AccountSettings() {
     setRemovePinMsg(null);
 
     if (!removePinInput) {
-      setRemovePinMsg({ type: "error", text: "Current PIN or password is required." });
+      setRemovePinMsg({ type: "error", text: "Current PIN is required." });
       return;
     }
 
@@ -302,13 +517,30 @@ export function AccountSettings() {
       if (window.electronAPI?.security) {
         const res = await window.electronAPI.security.removePin(removePinInput);
         if (res.success) {
-          setRemovePinMsg({ type: "success", text: "6-Digit PIN removed successfully!" });
           setRemovePinInput("");
-          setTimeout(() => setShowRemovePinModal(false), 1200);
+          setShowRemovePinModal(false);
           await fetchSecurityStatus();
         } else {
           setRemovePinMsg({ type: "error", text: res.error || "Failed to remove PIN." });
         }
+      } else {
+        const stored = localStorage.getItem("appLockPinPlain") || localStorage.getItem("appLockPin");
+        if (stored && stored !== removePinInput) {
+          setRemovePinMsg({ type: "error", text: "Incorrect PIN." });
+          return;
+        }
+        localStorage.removeItem("appLockPinPlain");
+        localStorage.removeItem("appLockPin");
+        localStorage.removeItem("appLockPinHash");
+        if (!localStorage.getItem("appLockPasswordPlain")) {
+          localStorage.setItem("appLockEnabled", "false");
+        } else {
+          localStorage.setItem("appLockMethod", "password");
+        }
+        setRemovePinInput("");
+        setShowRemovePinModal(false);
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        await fetchSecurityStatus();
       }
     } catch (err: any) {
       setRemovePinMsg({ type: "error", text: err?.message || "An error occurred." });
@@ -317,7 +549,7 @@ export function AccountSettings() {
     }
   };
 
-  const handleGenerateRecoveryKey = async () => {
+  const handleRegenerateKey = async () => {
     setRecoveryLoading(true);
     try {
       if (window.electronAPI?.security) {
@@ -327,40 +559,52 @@ export function AccountSettings() {
           setShowRecoveryModal(true);
           await fetchSecurityStatus();
         }
+      } else {
+        const newKey = "APL7-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+          Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+          Math.random().toString(36).substring(2, 6).toUpperCase() + "-" +
+          Math.random().toString(36).substring(2, 6).toUpperCase();
+        localStorage.setItem("appLockRecoveryKey", newKey);
+        setGeneratedKey(newKey);
+        setShowRecoveryModal(true);
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        await fetchSecurityStatus();
       }
     } catch (err) {
-      console.error("Failed to generate recovery key:", err);
+      console.error(err);
     } finally {
       setRecoveryLoading(false);
     }
   };
 
-  const handleCopyKey = () => {
-    if (generatedKey) {
-      navigator.clipboard.writeText(generatedKey);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
+  // License Activation Handler
+  const handleActivateLicenseInAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!licenseKeyInput.trim()) {
+      setLicenseMsg({ type: "error", text: "Please enter a valid license key or token." });
+      return;
+    }
+
+    setActivatingLicense(true);
+    setLicenseMsg(null);
+    try {
+      const res = await activateLicense(licenseKeyInput.trim());
+      if (res.success && res.license) {
+        setLicense(res.license);
+        setLicenseKeyInput("");
+        setLicenseMsg({
+          type: "success",
+          text: `Activated ${res.license.edition.toUpperCase()} edition! All offline features verified.`,
+        });
+      } else {
+        setLicenseMsg({ type: "error", text: res.error || "License verification failed. Signature mismatch." });
+      }
+    } catch (err: any) {
+      setLicenseMsg({ type: "error", text: err?.message || "Activation error." });
+    } finally {
+      setActivatingLicense(false);
     }
   };
-
-  const handleDownloadKey = () => {
-    if (generatedKey) {
-      const warningText = `AI Prompt Library Recovery Key\nGenerated: ${new Date().toISOString()}\n\nRecovery Key: ${generatedKey}\n\nWARNING: Keep this Recovery Key somewhere safe. This is your primary recovery method if you forget your password or PIN.`;
-      const blob = new Blob([warningText], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ai-prompt-library-recovery-key.txt";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const hasPassword = Boolean(secStatus?.hasPassword);
-  const minLengthValid = newPassword.length >= 6;
-  const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
-  const pinValidLength = /^\d{6}$/.test(newPin);
-  const pinMatches = newPin.length === 6 && newPin === confirmPin;
 
   return (
     <div className="space-y-8 max-w-2xl text-left">
@@ -369,10 +613,10 @@ export function AccountSettings() {
         title="Profile Information"
         description="Personal account parameters retrieved from local workspace authentication session."
       >
-        <div className="glass-card p-5 rounded-2xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div className="glass-card p-5 rounded-2xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div className="flex items-center gap-4">
             <div className="relative group shrink-0">
-              <div className="h-16 w-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-primary overflow-hidden shadow-sm">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-primary overflow-hidden shadow-sm">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -385,8 +629,8 @@ export function AccountSettings() {
               </div>
               <label
                 htmlFor="avatar-file-input"
-                className="absolute inset-0 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
-                title="Upload/Change Profile Photo"
+                className="absolute inset-0 bg-black/50 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                title="Upload & Adjust Profile Photo"
               >
                 <Camera className="h-5 w-5" />
               </label>
@@ -394,30 +638,30 @@ export function AccountSettings() {
                 id="avatar-file-input"
                 type="file"
                 accept="image/*"
-                onChange={handleAvatarFileChange}
+                onChange={handleAvatarFileSelected}
                 className="hidden"
               />
             </div>
             <div className="flex flex-col">
               <span className="text-base font-bold text-foreground">
-                {loading ? "Loading..." : profile?.username || "Developer"}
+                {profile.username}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {loading ? "Loading..." : profile?.email || "developer@example.com"}
+              <span className="text-xs text-muted-foreground font-mono">
+                {profile.email}
               </span>
               <div className="flex items-center gap-2 mt-2">
                 <label
                   htmlFor="avatar-file-input"
-                  className="text-[11px] font-semibold text-primary hover:underline cursor-pointer flex items-center gap-1 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded border border-primary/20 transition-colors"
+                  className="text-[11px] font-semibold text-primary hover:underline cursor-pointer flex items-center gap-1 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg border border-primary/20 transition-colors"
                 >
                   <Upload className="h-3 w-3" />
-                  <span>{avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                  <span>{avatarUrl ? "Change & Adjust Photo" : "Upload Photo"}</span>
                 </label>
                 {avatarUrl && (
                   <button
                     type="button"
                     onClick={handleRemoveAvatar}
-                    className="text-[11px] font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1 bg-danger/10 hover:bg-danger/20 px-2 py-0.5 rounded border border-danger/20 transition-colors"
+                    className="text-[11px] font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1 bg-danger/10 hover:bg-danger/20 px-2.5 py-1 rounded-lg border border-danger/20 transition-colors"
                   >
                     <Trash2 className="h-3 w-3" />
                     <span>Remove</span>
@@ -427,355 +671,428 @@ export function AccountSettings() {
             </div>
           </div>
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-status-online text-status-online-foreground capitalize self-start sm:self-center">
-            {profile?.status || "Active"}
+            {profile.status}
           </span>
         </div>
 
-        <SettingRow title="Username" description="Your unique developer workspace handle.">
-          <span className="text-sm font-semibold text-foreground">
-            {loading ? "..." : profile?.username}
-          </span>
-        </SettingRow>
+        {/* Editable Username and Email Form */}
+        <form onSubmit={handleSaveProfile} className="space-y-3 pt-2">
+          {profileSavedMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>Profile details updated and saved successfully!</span>
+            </div>
+          )}
 
-        <SettingRow title="Email Address" description="Primary account email used for sign in.">
-          <span className="text-sm font-semibold text-foreground">
-            {loading ? "..." : profile?.email}
-          </span>
-        </SettingRow>
+          <SettingRow title="Username" description="Your unique developer workspace handle.">
+            <input
+              type="text"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              placeholder="e.g. PromptEngineer"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-foreground text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary w-48 text-right"
+            />
+          </SettingRow>
+
+          <SettingRow title="Email Address" description="Primary account email used for sign in and receipts.">
+            <input
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              placeholder="e.g. dev@example.com"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-foreground text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary w-56 text-right font-mono"
+            />
+          </SettingRow>
+
+          <div className="flex justify-end pt-1">
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+            >
+              <Save className="h-3.5 w-3.5" />
+              <span>Save Profile Details</span>
+            </button>
+          </div>
+        </form>
       </SettingsSection>
 
-      {/* 2. Application Security & Lock */}
+      {/* 2. License Activation & Product Status Section */}
+      <SettingsSection
+        title="License & Product Activation"
+        description="Activate your offline commercial license key to unlock advanced features."
+      >
+        <div className="p-4 rounded-2xl border border-border bg-card/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/20">
+                <ShieldCheck className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-foreground block">
+                  {license.edition === "free" ? "Free Community License" : `${license.edition.toUpperCase()} License`}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Status: <strong className={license.status === "ACTIVE" ? "text-emerald-500" : "text-foreground"}>{license.status}</strong>
+                  {license.licensee && ` • Registered to: ${license.licensee}`}
+                </span>
+              </div>
+            </div>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-secondary text-foreground border border-border">
+              {license.edition.toUpperCase()}
+            </span>
+          </div>
+
+          {licenseMsg && (
+            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+              licenseMsg.type === "success"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-destructive/10 border-destructive/20 text-destructive"
+            }`}>
+              {licenseMsg.type === "success" ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+              <span>{licenseMsg.text}</span>
+            </div>
+          )}
+
+          {/* Direct Activation Form */}
+          <form onSubmit={handleActivateLicenseInAccount} className="pt-2 flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={licenseKeyInput}
+              onChange={(e) => setLicenseKeyInput(e.target.value)}
+              placeholder="Enter cryptographic activation token..."
+              className="flex-1 px-3.5 py-2 rounded-xl border border-border bg-background text-foreground text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button
+              type="submit"
+              disabled={activatingLicense || !licenseKeyInput.trim()}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0"
+            >
+              {activatingLicense ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+              <span>Activate Key</span>
+            </button>
+          </form>
+        </div>
+      </SettingsSection>
+
+      {/* 3. Application Security & Lock */}
       <SettingsSection
         title="Application Security"
         description="Configure your application password, application lock, and emergency recovery key."
       >
-        {/* Guard Warning Banner */}
         {guardWarning && (
-          <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-2 mb-2">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-600 dark:text-amber-400 text-xs flex items-center gap-2 mb-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{guardWarning}</span>
           </div>
         )}
 
-        {/* Password Section (Create vs Change) */}
+        {/* Lock Application Toggle */}
         <SettingRow
-          title="Password"
-          description={
-            hasPassword
-              ? "Application password is configured."
-              : "No application password has been created yet."
-          }
+          title="Enable Application Lock"
+          description="Require password or PIN authentication to access workspace prompts."
         >
-          {hasPassword ? (
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={secStatus?.enabled ?? false}
+              onChange={(e) => handleToggleLock(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </SettingRow>
+
+        {/* Lock Method */}
+        {secStatus?.enabled && (
+          <SettingRow
+            title="Authentication Method"
+            description="Select whether you prefer a password or a 6-digit numeric PIN."
+          >
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  setGuardWarning(null);
-                  setShowCurrentPassword(false);
-                  setShowNewPassword(false);
-                  setShowConfirmPassword(false);
-                  setShowPasswordModal(true);
-                }}
-                className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                type="button"
+                onClick={() => handleSetLockMethod("password")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                  secStatus?.method === "password"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                }`}
               >
-                <KeyRound className="h-3.5 w-3.5 text-primary" />
-                <span>Change Password</span>
+                Password
               </button>
               <button
+                type="button"
+                onClick={() => handleSetLockMethod("pin")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                  secStatus?.method === "pin"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                }`}
+              >
+                6-Digit PIN
+              </button>
+            </div>
+          </SettingRow>
+        )}
+
+        {/* Password Management Row */}
+        <SettingRow
+          title="Application Password"
+          description={secStatus?.hasPassword ? "Password is configured and active." : "No application password configured."}
+        >
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordMsg(null);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+                setShowPasswordModal(true);
+              }}
+              className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
+            >
+              {secStatus?.hasPassword ? "Change Password" : "Create Password"}
+            </button>
+            {secStatus?.hasPassword && (
+              <button
+                type="button"
                 onClick={() => {
                   setRemovePasswordMsg(null);
                   setRemovePasswordInput("");
-                  setShowRemovePasswordInput(false);
                   setShowRemovePasswordModal(true);
                 }}
-                className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-lg border border-danger/30 bg-danger/10 hover:bg-danger/20 text-xs font-semibold text-danger transition-colors cursor-pointer"
               >
-                <span>Remove Password</span>
+                Remove
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setGuardWarning(null);
-                setShowCurrentPassword(false);
-                setShowNewPassword(false);
-                setShowConfirmPassword(false);
-                setShowPasswordModal(true);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span>Create Password</span>
-            </button>
-          )}
+            )}
+          </div>
         </SettingRow>
 
-        {/* PIN Section (Always Visible) */}
+        {/* PIN Management Row */}
         <SettingRow
           title="6-Digit PIN"
-          description={
-            secStatus?.hasPin
-              ? "6-digit numeric PIN is configured and active."
-              : "No 6-digit PIN has been configured yet."
-          }
+          description={secStatus?.hasPin ? "PIN is configured and active." : "Quick unlock 6-digit numeric PIN."}
         >
-          {secStatus?.hasPin ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setPinMsg(null);
-                  setPinPassword("");
-                  setNewPin("");
-                  setConfirmPin("");
-                  setShowPinPassword(false);
-                  setShowNewPin(false);
-                  setShowConfirmPin(false);
-                  setShowPinModal(true);
-                }}
-                className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <Lock className="h-3.5 w-3.5 text-primary" />
-                <span>Change PIN</span>
-              </button>
-              <button
-                onClick={() => {
-                  setRemovePinMsg(null);
-                  setRemovePinInput("");
-                  setShowRemovePinInput(false);
-                  setShowRemovePinModal(true);
-                }}
-                className="px-3.5 py-1.5 rounded-lg border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
-              >
-                <span>Remove PIN</span>
-              </button>
-            </div>
-          ) : (
+          <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => {
                 setPinMsg(null);
                 setPinPassword("");
                 setNewPin("");
                 setConfirmPin("");
-                setShowPinPassword(false);
-                setShowNewPin(false);
-                setShowConfirmPin(false);
                 setShowPinModal(true);
               }}
-              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
             >
-              <Lock className="h-3.5 w-3.5" />
-              <span>Setup PIN</span>
+              {secStatus?.hasPin ? "Change PIN" : "Setup PIN"}
             </button>
-          )}
-        </SettingRow>
-
-        {/* Application Lock Section */}
-        <SettingRow
-          title="Application Lock"
-          description="Require authentication when starting or reopening the application."
-        >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleToggleLock(!secStatus?.enabled)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${secStatus?.enabled ? "bg-primary" : "bg-muted"
-                }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${secStatus?.enabled ? "translate-x-5" : "translate-x-0"
-                  }`}
-              />
-            </button>
-            <span className="text-xs font-semibold text-foreground">
-              {secStatus?.enabled ? "ON" : "OFF"}
-            </span>
-          </div>
-        </SettingRow>
-
-        {/* Lock Method Selection (when lock is ON and both credentials exist) */}
-        {secStatus?.enabled && (hasPassword || secStatus.hasPin) && (
-          <SettingRow title="Lock Method" description="Choose whether to unlock using your Application Password or 6-Digit PIN.">
-            <div className="flex items-center gap-4">
-              <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${!hasPassword ? "opacity-40 cursor-not-allowed" : "text-foreground"}`}>
-                <input
-                  type="radio"
-                  name="lockMethod"
-                  disabled={!hasPassword}
-                  checked={secStatus.method === "password"}
-                  onChange={() => handleSetLockMethod("password")}
-                  className="accent-primary"
-                />
-                Password {hasPassword ? "" : "(Not Set)"}
-              </label>
-
-              <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${!secStatus.hasPin ? "opacity-40 cursor-not-allowed" : "text-foreground"}`}>
-                <input
-                  type="radio"
-                  name="lockMethod"
-                  disabled={!secStatus.hasPin}
-                  checked={secStatus.method === "pin"}
-                  onChange={() => handleSetLockMethod("pin")}
-                  className="accent-primary"
-                />
-                PIN {secStatus.hasPin ? "" : "(Not Set)"}
-              </label>
-            </div>
-          </SettingRow>
-        )}
-
-        {/* Emergency Recovery Key Section */}
-        <SettingRow
-          title="Recovery Key"
-          description="Generate a 24-character recovery key. This is your primary recovery method if you forget your password or PIN."
-        >
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleGenerateRecoveryKey}
-              disabled={recoveryLoading}
-              className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              {recoveryLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Shield className="h-3.5 w-3.5" />}
-              <span>{secStatus?.hasRecoveryKey ? "Regenerate Recovery Key" : "Generate Recovery Key"}</span>
-            </button>
-            {secStatus?.hasRecoveryKey && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                Active
-              </span>
+            {secStatus?.hasPin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRemovePinMsg(null);
+                  setRemovePinInput("");
+                  setShowRemovePinModal(true);
+                }}
+                className="px-3 py-1.5 rounded-lg border border-danger/30 bg-danger/10 hover:bg-danger/20 text-xs font-semibold text-danger transition-colors cursor-pointer"
+              >
+                Remove
+              </button>
             )}
           </div>
         </SettingRow>
+
+        {/* Emergency Recovery Key Row */}
+        <SettingRow
+          title="Emergency Recovery Key"
+          description="24-character key used to regain workspace access if you forget your password."
+        >
+          <button
+            type="button"
+            onClick={handleRegenerateKey}
+            disabled={recoveryLoading}
+            className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            {recoveryLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5 text-warning" />}
+            <span>View / Regenerate Key</span>
+          </button>
+        </SettingRow>
       </SettingsSection>
 
-      {/* Create / Change Password Modal */}
+      {/* Avatar Position Adjuster & Cropper Modal */}
+      {showAdjustModal && rawAvatarSrc && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-3xl border border-primary/20 shadow-2xl bg-card space-y-4 text-left">
+            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" />
+              <span>Adjust & Position Avatar Photo</span>
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Zoom and drag sliders to perfectly position your profile picture before saving.
+            </p>
+
+            {/* Circular Preview Viewport */}
+            <div className="flex items-center justify-center py-4">
+              <div className="w-48 h-48 rounded-full border-4 border-primary/40 overflow-hidden relative shadow-inner bg-black/20 flex items-center justify-center">
+                <div
+                  className="w-full h-full relative"
+                  style={{
+                    transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`,
+                    transition: "transform 0.05s ease-out",
+                  }}
+                >
+                  <img
+                    src={rawAvatarSrc}
+                    alt="Adjusting Avatar"
+                    className="w-full h-full object-cover select-none pointer-events-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Controls: Zoom & Pan */}
+            <div className="space-y-3 pt-2">
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-1">
+                  <span className="flex items-center gap-1"><ZoomIn className="h-3.5 w-3.5 text-primary" /> Zoom</span>
+                  <span>{Math.round(zoom * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="w-full accent-primary cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-1">
+                  <span className="flex items-center gap-1"><Move className="h-3.5 w-3.5 text-primary" /> Horizontal Position (X)</span>
+                  <span>{panX}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="-60"
+                  max="60"
+                  value={panX}
+                  onChange={(e) => setPanX(parseInt(e.target.value))}
+                  className="w-full accent-primary cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-1">
+                  <span className="flex items-center gap-1"><Move className="h-3.5 w-3.5 text-primary" /> Vertical Position (Y)</span>
+                  <span>{panY}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="-60"
+                  max="60"
+                  value={panY}
+                  onChange={(e) => setPanY(parseInt(e.target.value))}
+                  className="w-full accent-primary cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAdjustModal(false);
+                  setRawAvatarSrc(null);
+                }}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyAdjustedAvatar}
+                className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="h-4 w-4" />
+                <span>Apply & Save Photo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
             <h3 className="text-base font-bold text-foreground">
-              {hasPassword ? "Change Password" : "Create Application Password"}
+              {secStatus?.hasPassword ? "Change Application Password" : "Create Application Password"}
             </h3>
 
-            <p className="text-xs text-muted-foreground">
-              {hasPassword
-                ? "Enter your current password to authorize changing your password."
-                : "Create a password to protect your prompt library and enable application lock."}
-            </p>
-
             {passwordMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs ${passwordMsg.type === "success"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-danger/10 text-danger border border-danger/20"
-                  }`}
-              >
+              <div className={`p-3 rounded-xl text-xs ${passwordMsg.type === "success" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-danger/10 text-danger"}`}>
                 {passwordMsg.text}
               </div>
             )}
 
             <form onSubmit={handlePasswordSubmit} className="space-y-3">
-              {hasPassword && (
+              {secStatus?.hasPassword && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
-                  <div className="relative">
-                    <input
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      tabIndex={-1}
-                      title={showCurrentPassword ? "Hide password" : "Show password"}
-                    >
-                      {showCurrentPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                  />
                 </div>
               )}
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                  {hasPassword ? "New Password" : "Password"}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showNewPassword ? "Hide password" : "Show password"}
-                  >
-                    {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">New Password (min 6 chars)</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                  {hasPassword ? "Confirm New Password" : "Confirm Password"}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showConfirmPassword ? "Hide password" : "Show password"}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Password Requirements Checklist */}
-              <div className="p-3 rounded-xl bg-secondary/40 border border-border text-[11px] space-y-1">
-                <span className="font-semibold text-muted-foreground block mb-1">Password requirements</span>
-                <div className={`flex items-center gap-1.5 ${minLengthValid ? "text-emerald-500" : "text-muted-foreground"}`}>
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>Minimum length of 6 characters</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${passwordsMatch ? "text-emerald-500" : "text-muted-foreground"}`}>
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>Passwords match</span>
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={passwordLoading || !minLengthValid || !passwordsMatch}
-                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  disabled={passwordLoading}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
-                  {passwordLoading ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  ) : hasPassword ? (
-                    "Save Password"
-                  ) : (
-                    "Create Password"
-                  )}
+                  {passwordLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save Password"}
                 </button>
               </div>
             </form>
@@ -783,122 +1100,59 @@ export function AccountSettings() {
         </div>
       )}
 
-      {/* PIN Setup Modal */}
+      {/* PIN Modal */}
       {showPinModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
-            <h3 className="text-base font-bold text-foreground">Configure 6-Digit PIN</h3>
+            <h3 className="text-base font-bold text-foreground">
+              {secStatus?.hasPin ? "Change 6-Digit PIN" : "Configure 6-Digit Numeric PIN"}
+            </h3>
 
             {pinMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs ${pinMsg.type === "success"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-danger/10 text-danger border border-danger/20"
-                  }`}
-              >
+              <div className={`p-3 rounded-xl text-xs ${pinMsg.type === "success" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-danger/10 text-danger"}`}>
                 {pinMsg.text}
               </div>
             )}
 
             <form onSubmit={handleSetupPinSubmit} className="space-y-3">
-              {hasPassword && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Verify Current Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPinPassword ? "text" : "password"}
-                      required
-                      value={pinPassword}
-                      onChange={(e) => setPinPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPinPassword(!showPinPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      tabIndex={-1}
-                      title={showPinPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPinPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              )}
-
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">6-Digit Numerical PIN</label>
-                <div className="relative">
-                  <input
-                    type={showNewPin ? "text" : "password"}
-                    required
-                    maxLength={6}
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                    placeholder="••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPin(!showNewPin)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showNewPin ? "Hide PIN" : "Show PIN"}
-                  >
-                    {showNewPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">New 6-Digit PIN</label>
+                <input
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="••••••"
+                  maxLength={6}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs font-mono text-center tracking-widest"
+                />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Confirm 6-Digit PIN</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPin ? "text" : "password"}
-                    required
-                    maxLength={6}
-                    value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                    placeholder="••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs text-center font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPin(!showConfirmPin)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showConfirmPin ? "Hide PIN" : "Show PIN"}
-                  >
-                    {showConfirmPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* PIN Requirements Checklist */}
-              <div className="p-3 rounded-xl bg-secondary/40 border border-border text-[11px] space-y-1">
-                <span className="font-semibold text-muted-foreground block mb-1">PIN requirements</span>
-                <div className={`flex items-center gap-1.5 ${pinValidLength ? "text-emerald-500" : "text-muted-foreground"}`}>
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>Exactly 6 numeric digits</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${pinMatches ? "text-emerald-500" : "text-muted-foreground"}`}>
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>PINs match</span>
-                </div>
+                <input
+                  type="password"
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="••••••"
+                  maxLength={6}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs font-mono text-center tracking-widest"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPinModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={pinLoading || !pinValidLength || !pinMatches}
-                  className="px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  disabled={pinLoading || newPin.length !== 6 || newPin !== confirmPin}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {pinLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Save PIN"}
                 </button>
@@ -913,60 +1167,34 @@ export function AccountSettings() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
             <h3 className="text-base font-bold text-foreground">Remove Application Password</h3>
-            <p className="text-xs text-muted-foreground">
-              Enter your current password to authorize removing your application password.
-            </p>
-
             {removePasswordMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs ${
-                  removePasswordMsg.type === "success"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-danger/10 text-danger border border-danger/20"
-                }`}
-              >
-                {removePasswordMsg.text}
-              </div>
+              <div className="p-3 bg-danger/10 text-danger text-xs rounded-xl">{removePasswordMsg.text}</div>
             )}
-
             <form onSubmit={handleRemovePasswordSubmit} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Password</label>
-                <div className="relative">
-                  <input
-                    type={showRemovePasswordInput ? "text" : "password"}
-                    required
-                    value={removePasswordInput}
-                    onChange={(e) => setRemovePasswordInput(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRemovePasswordInput(!showRemovePasswordInput)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showRemovePasswordInput ? "Hide password" : "Show password"}
-                  >
-                    {showRemovePasswordInput ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Enter current password to confirm</label>
+                <input
+                  type="password"
+                  value={removePasswordInput}
+                  onChange={(e) => setRemovePasswordInput(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs"
+                />
               </div>
-
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowRemovePasswordModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={removePasswordLoading}
-                  className="px-4 py-1.5 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer"
                 >
-                  {removePasswordLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove Password"}
+                  Remove Password
                 </button>
               </div>
             </form>
@@ -979,60 +1207,34 @@ export function AccountSettings() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-border shadow-2xl space-y-4 text-left">
             <h3 className="text-base font-bold text-foreground">Remove 6-Digit PIN</h3>
-            <p className="text-xs text-muted-foreground">
-              Enter your current 6-digit PIN (or application password) to confirm removing your PIN.
-            </p>
-
             {removePinMsg && (
-              <div
-                className={`p-3 rounded-xl text-xs ${
-                  removePinMsg.type === "success"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : "bg-danger/10 text-danger border border-danger/20"
-                }`}
-              >
-                {removePinMsg.text}
-              </div>
+              <div className="p-3 bg-danger/10 text-danger text-xs rounded-xl">{removePinMsg.text}</div>
             )}
-
             <form onSubmit={handleRemovePinSubmit} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current PIN or Password</label>
-                <div className="relative">
-                  <input
-                    type={showRemovePinInput ? "text" : "password"}
-                    required
-                    value={removePinInput}
-                    onChange={(e) => setRemovePinInput(e.target.value)}
-                    placeholder="••••••"
-                    className="w-full px-3 py-2 pr-9 rounded-lg border border-border bg-card text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRemovePinInput(!showRemovePinInput)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    tabIndex={-1}
-                    title={showRemovePinInput ? "Hide PIN" : "Show PIN"}
-                  >
-                    {showRemovePinInput ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Enter current PIN to confirm</label>
+                <input
+                  type="password"
+                  value={removePinInput}
+                  onChange={(e) => setRemovePinInput(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground text-xs font-mono text-center tracking-widest"
+                />
               </div>
-
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowRemovePinModal(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={removePinLoading}
-                  className="px-4 py-1.5 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-danger text-white text-xs font-bold hover:bg-danger/90 transition-colors cursor-pointer"
                 >
-                  {removePinLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Remove PIN"}
+                  Remove PIN
                 </button>
               </div>
             </form>
@@ -1040,53 +1242,43 @@ export function AccountSettings() {
         </div>
       )}
 
-      {/* Recovery Key Modal */}
+      {/* Emergency Recovery Key Modal */}
       {showRecoveryModal && generatedKey && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-primary/30 shadow-2xl space-y-4 text-left">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full glass-card p-6 rounded-2xl border border-warning/30 shadow-2xl space-y-4 text-left">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
-                <Shield className="h-5 w-5" />
+              <div className="p-2.5 rounded-xl bg-warning/10 text-warning border border-warning/20">
+                <KeyRound className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Save Your Recovery Key</h3>
-                <p className="text-xs text-muted-foreground">
-                  Store this key in a safe offline location. This is your primary recovery method if you forget your password or PIN.
-                </p>
+                <h3 className="text-base font-bold text-foreground">Emergency Recovery Key</h3>
+                <p className="text-xs text-muted-foreground">Save this key in a secure location.</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-secondary/50 border border-border font-mono text-center text-sm font-bold tracking-widest text-primary selection:bg-primary selection:text-primary-foreground">
+            <div className="p-4 rounded-xl bg-muted/60 border border-border font-mono text-sm font-bold text-center tracking-wider text-primary select-all">
               {generatedKey}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
-                onClick={handleCopyKey}
-                className="flex-1 py-2 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {copiedKey ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                <span>{copiedKey ? "Copied to Clipboard" : "Copy Key"}</span>
-              </button>
-
-              <button
-                onClick={handleDownloadKey}
-                className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Download className="h-4 w-4" />
-                <span>Save Key File</span>
-              </button>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
+                type="button"
                 onClick={() => {
-                  setShowRecoveryModal(false);
-                  setGeneratedKey(null);
+                  navigator.clipboard.writeText(generatedKey);
+                  setCopiedKey(true);
+                  setTimeout(() => setCopiedKey(false), 2000);
                 }}
-                className="px-4 py-2 rounded-lg bg-secondary text-foreground text-xs font-semibold hover:bg-muted cursor-pointer"
+                className="px-3 py-2 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-muted flex items-center gap-1.5 cursor-pointer"
               >
-                I Have Saved My Recovery Key
+                {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedKey ? "Copied" : "Copy Key"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRecoveryModal(false)}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                Done
               </button>
             </div>
           </div>
