@@ -12,7 +12,7 @@ interface AboutModalProps {
 
 export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalProps) {
   const [appInfo, setAppInfo] = useState<{ version: string; platform: string; arch: string }>({
-    version: "2.0.0",
+    version: "2.0.1",
     platform: "win32",
     arch: "x64",
   });
@@ -29,7 +29,7 @@ export function AboutModal({ isOpen, onClose, onCheckForUpdates }: AboutModalPro
         }
       })
       .catch(() => {
-        setAppInfo((prev) => ({ ...prev, version: "2.0.0" }));
+        setAppInfo((prev) => ({ ...prev, version: "2.0.1" }));
       });
   }, [isOpen]);
 
