@@ -166,12 +166,36 @@ export function initializeSchema(db: Database) {
     );
   `);
 
+  // Subcategories entity & category relationship (Scoped uniqueness: UNIQUE(category_id, name))
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subcategories (
+      id TEXT PRIMARY KEY,
+      category_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE,
+      UNIQUE(category_id, name)
+    );
+  `);
+
   // Add category_id column to prompts if missing
   try {
     db.exec(`ALTER TABLE prompts ADD COLUMN category_id TEXT;`);
   } catch (err) {
     if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
       console.warn(`[DB] Migration warn: Could not add category_id to prompts:`, err);
+    }
+  }
+
+  // Add subcategory_id column to prompts if missing (additive, safe)
+  try {
+    db.exec(`ALTER TABLE prompts ADD COLUMN subcategory_id TEXT;`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add subcategory_id to prompts:`, err);
     }
   }
 
@@ -218,9 +242,11 @@ export function initializeSchema(db: Database) {
     }
   }
 
-  // Indexes for categories & projects
+  // Indexes for categories, subcategories & projects
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_category_id ON prompts(category_id);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_subcategory_id ON prompts(subcategory_id);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompts_project_id ON prompts(project_id);`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_subcategories_category_id ON subcategories(category_id);`);
 
   // Seed default workspace/project if table is empty
   const projectCount = (db.prepare(`SELECT COUNT(*) as count FROM projects`).get() as { count: number }).count;

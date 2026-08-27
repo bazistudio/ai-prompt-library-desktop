@@ -8,8 +8,8 @@ import { UpdateBanner } from "./UpdateBanner";
 import { LockScreen } from "@/components/security/LockScreen";
 import { AboutModal } from "@/components/modals/AboutModal";
 import { QuickCaptureModal } from "@/components/quick-capture/QuickCaptureModal";
-import { CommandPaletteModal } from "@/components/modals/CommandPaletteModal";
 import { KeyboardShortcutsModal } from "@/components/modals/KeyboardShortcutsModal";
+import { getStoragePath } from "@/services/storage/storageService";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -30,7 +30,6 @@ export function AppShell({ children, session }: AppShellProps) {
   });
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -47,7 +46,12 @@ export function AppShell({ children, session }: AppShellProps) {
   const username = session?.username || "Developer";
   const email = session?.email || "developer@example.com";
 
-  // Global Keyboard Shortcuts listener
+  const focusNavbarSearch = () => {
+    const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="Search prompts"]');
+    searchInput?.focus();
+  };
+
+  // Global Canonical Keyboard Shortcuts listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInput =
@@ -55,23 +59,53 @@ export function AppShell({ children, session }: AppShellProps) {
         document.activeElement instanceof HTMLTextAreaElement ||
         (document.activeElement as HTMLElement)?.isContentEditable;
 
-      // Cmd/Ctrl + K: Command Palette
-      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
-        e.preventDefault();
-        setCommandPaletteOpen((prev) => !prev);
-        return;
-      }
+      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
 
-      // Cmd/Ctrl + Shift + N: Quick Capture
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "N" || e.key === "n")) {
+      // Ctrl + Shift + N: Quick Capture
+      if (isCtrlOrMeta && e.shiftKey && (e.key === "N" || e.key === "n")) {
         e.preventDefault();
         setQuickCaptureOpen((prev) => !prev);
         return;
       }
 
-      // '?' or Cmd/Ctrl + / : Keyboard Shortcuts Cheatsheet (when not typing in an input)
+      // Ctrl + N: New Prompt (when not typing in an active text field)
+      if (isCtrlOrMeta && !e.shiftKey && (e.key === "n" || e.key === "N") && !isInput) {
+        e.preventDefault();
+        navigate("/prompts/new");
+        return;
+      }
+
+      // Ctrl + O: Open Library
+      if (isCtrlOrMeta && (e.key === "o" || e.key === "O") && !isInput) {
+        e.preventDefault();
+        navigate("/prompts");
+        return;
+      }
+
+      // Ctrl + K: Focus Navbar Search Bar
+      if (isCtrlOrMeta && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        focusNavbarSearch();
+        return;
+      }
+
+      // Ctrl + B: Toggle Sidebar
+      if (isCtrlOrMeta && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+
+      // Ctrl + ,: Settings
+      if (isCtrlOrMeta && e.key === ",") {
+        e.preventDefault();
+        navigate("/settings");
+        return;
+      }
+
+      // '?' or Ctrl + /: Keyboard Shortcuts Cheatsheet
       if (
-        ((e.ctrlKey || e.metaKey) && e.key === "/") ||
+        (isCtrlOrMeta && e.key === "/") ||
         (!isInput && e.key === "?")
       ) {
         e.preventDefault();
@@ -79,59 +113,141 @@ export function AppShell({ children, session }: AppShellProps) {
         return;
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [navigate]);
 
+  // Listen to native desktop shell events from Tauri
   useEffect(() => {
-    if (typeof window === "undefined" || !window.electronAPI) {
-      return;
-    }
+    let unlistenMenu: (() => void) | undefined;
+    let unlistenDocs: (() => void) | undefined;
+    let unlistenAbout: (() => void) | undefined;
 
-    const api = window.electronAPI;
+    import("@tauri-apps/api/event")
+      .then(({ listen }) => {
+        // Main Unified Menu Event Dispatcher
+        listen<string>("menu-action", async (event) => {
+          const action = event.payload;
+          switch (action) {
+            case "new_prompt":
+            case "prompt_new":
+              navigate("/prompts/new");
+              break;
+            case "quick_capture":
+            case "prompt_quick_capture":
+              setQuickCaptureOpen(true);
+              break;
+            case "open_library":
+            case "view_library":
+              navigate("/prompts");
+              break;
+            case "open_storage":
+            case "tools_storage": {
+              try {
+                const path = await getStoragePath();
+                if (path) {
+                  const { invoke } = await import("@tauri-apps/api/core");
+                  await invoke("open_in_file_manager", { path });
+                } else {
+                  navigate("/settings");
+                }
+              } catch {
+                navigate("/settings");
+              }
+              break;
+            }
+            case "settings":
+            case "view_settings":
+            case "workspace_settings":
+              navigate("/settings");
+              break;
+            case "view_dashboard":
+              navigate("/dashboard");
+              break;
+            case "view_workflows":
+              navigate("/workflows");
+              break;
+            case "command_palette":
+            case "tools_search":
+              focusNavbarSearch();
+              break;
+            case "toggle_sidebar":
+              toggleSidebar();
+              break;
+            case "toggle_theme": {
+              const isDark = document.documentElement.classList.contains("dark");
+              if (isDark) {
+                document.documentElement.classList.remove("dark");
+                localStorage.setItem("theme", "light");
+              } else {
+                document.documentElement.classList.add("dark");
+                localStorage.setItem("theme", "dark");
+              }
+              break;
+            }
+            case "prompt_favorites":
+              navigate("/prompts?favorite=true");
+              break;
+            case "prompt_version_history":
+              window.dispatchEvent(new CustomEvent("app:toggle-version-history"));
+              break;
+            case "prompt_delete":
+              window.dispatchEvent(new CustomEvent("app:trigger-safe-delete-prompt"));
+              break;
+            case "workspace_switch":
+            case "workspace_categories":
+              navigate("/prompts");
+              break;
+            case "documentation":
+              try {
+                const { openUrl } = await import("@tauri-apps/plugin-opener");
+                await openUrl("https://github.com/bazistudio/ai-prompt-library-desktop#readme");
+              } catch {
+                window.open("https://github.com/bazistudio/ai-prompt-library-desktop#readme", "_blank", "noopener,noreferrer");
+              }
+              break;
+            case "shortcuts":
+              setShortcutsModalOpen(true);
+              break;
+            case "check_updates":
+              window.dispatchEvent(new CustomEvent("app:check-for-updates"));
+              break;
+            case "about":
+              setAboutModalOpen(true);
+              break;
+            default:
+              break;
+          }
+        }).then((unsub) => {
+          unlistenMenu = unsub;
+        });
 
-    // Listen for native Electron menu navigation commands
-    const unsubNavigate = api.onMenuNavigate?.((path: string) => {
-      console.log("[AppShell] Native menu navigation:", path);
-      if (path) {
-        navigate(path);
-      }
-    });
+        listen("open-documentation", async () => {
+          try {
+            const { openUrl } = await import("@tauri-apps/plugin-opener");
+            await openUrl("https://github.com/bazistudio/ai-prompt-library-desktop#readme");
+          } catch {
+            window.open("https://github.com/bazistudio/ai-prompt-library-desktop#readme", "_blank", "noopener,noreferrer");
+          }
+        }).then((unsub) => {
+          unlistenDocs = unsub;
+        });
 
-    // Listen for open library folder command
-    const unsubFolder = api.onOpenLibraryFolder?.(() => {
-      if (api.storage?.openFolder) {
-        api.storage.openFolder();
-      }
-    });
-
-    // Listen for About dialog command
-    const unsubAbout = api.onOpenAboutDialog?.(() => {
-      setAboutModalOpen(true);
-    });
-
-    // Listen for Quick Capture command from system tray / menu
-    const unsubCapture = api.onOpenQuickCapture?.(() => {
-      setQuickCaptureOpen(true);
-    });
-
-    // Listen for Command Palette command
-    const unsubPalette = (api as any).onOpenCommandPalette?.(() => {
-      setCommandPaletteOpen(true);
-    });
-
-    // Listen for Shortcuts command
-    const unsubShortcuts = (api as any).onOpenShortcuts?.(() => {
-      setShortcutsModalOpen(true);
-    });
+        listen("open-about-dialog", () => {
+          setAboutModalOpen(true);
+        }).then((unsub) => {
+          unlistenAbout = unsub;
+        });
+      })
+      .catch(() => {
+        // Not in Tauri environment
+      });
 
     return () => {
-      unsubNavigate?.();
-      unsubFolder?.();
-      unsubAbout?.();
-      unsubCapture?.();
-      unsubPalette?.();
-      unsubShortcuts?.();
+      if (unlistenMenu) unlistenMenu();
+      if (unlistenDocs) unlistenDocs();
+      if (unlistenAbout) unlistenAbout();
     };
   }, [navigate]);
 
@@ -143,13 +259,10 @@ export function AppShell({ children, session }: AppShellProps) {
       {/* Background Update Notification Banner & Shell Center */}
       <UpdateBanner />
 
-      {/* Top Navbar */}
+      {/* Top Navbar with integrated search bar & dropdown */}
       <Navbar
         onMenuToggle={() => setMobileSidebarOpen(true)}
         onQuickCapture={() => setQuickCaptureOpen(true)}
-        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onToggleSidebarCollapse={toggleSidebar}
-        isSidebarCollapsed={sidebarCollapsed}
         username={username}
         email={email}
       />
@@ -174,14 +287,6 @@ export function AppShell({ children, session }: AppShellProps) {
         </main>
       </div>
 
-      {/* Global Command Palette & Spotlight Search */}
-      <CommandPaletteModal
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        onOpenQuickCapture={() => setQuickCaptureOpen(true)}
-        onOpenShortcuts={() => setShortcutsModalOpen(true)}
-      />
-
       {/* Global Keyboard Shortcuts Cheatsheet Modal */}
       <KeyboardShortcutsModal
         isOpen={shortcutsModalOpen}
@@ -202,9 +307,7 @@ export function AppShell({ children, session }: AppShellProps) {
         isOpen={aboutModalOpen}
         onClose={() => setAboutModalOpen(false)}
         onCheckForUpdates={() => {
-          if (window.electronAPI?.checkForUpdates) {
-            window.electronAPI.checkForUpdates();
-          }
+          window.dispatchEvent(new CustomEvent("app:check-for-updates"));
         }}
       />
     </div>

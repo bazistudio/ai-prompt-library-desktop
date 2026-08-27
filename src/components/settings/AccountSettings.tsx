@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SettingsSection } from "./SettingsSection";
 import { SettingRow } from "./SettingRow";
-import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle, Eye, EyeOff } from "lucide-react";
+import { User, Shield, KeyRound, Lock, RefreshCw, Copy, Check, Download, AlertCircle, PlusCircle, Eye, EyeOff, Camera, Upload, Trash2 } from "lucide-react";
 
 import { SecurityStatusData } from "@/types/electron";
 
@@ -19,6 +19,48 @@ export function AccountSettings() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [secStatus, setSecStatus] = useState<SecurityStatusData | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("ai_prompt_library_user_avatar");
+    } catch {
+      return null;
+    }
+  });
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size should be under 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setAvatarUrl(dataUrl);
+        try {
+          localStorage.setItem("ai_prompt_library_user_avatar", dataUrl);
+          window.dispatchEvent(new CustomEvent("user-avatar-updated", { detail: dataUrl }));
+        } catch (err) {
+          console.error("Failed to save avatar to localStorage:", err);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl(null);
+    try {
+      localStorage.removeItem("ai_prompt_library_user_avatar");
+      window.dispatchEvent(new CustomEvent("user-avatar-updated", { detail: null }));
+    } catch (err) {
+      console.error("Failed to remove avatar:", err);
+    }
+  };
 
   // Password Modal State (Create vs Change)
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -327,10 +369,34 @@ export function AccountSettings() {
         title="Profile Information"
         description="Personal account parameters retrieved from local workspace authentication session."
       >
-        <div className="glass-card p-5 rounded-2xl border border-border flex items-center justify-between mb-2">
+        <div className="glass-card p-5 rounded-2xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary">
-              <User className="h-6 w-6" />
+            <div className="relative group shrink-0">
+              <div className="h-16 w-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center text-primary overflow-hidden shadow-sm">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="h-8 w-8 text-primary" />
+                )}
+              </div>
+              <label
+                htmlFor="avatar-file-input"
+                className="absolute inset-0 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                title="Upload/Change Profile Photo"
+              >
+                <Camera className="h-5 w-5" />
+              </label>
+              <input
+                id="avatar-file-input"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-base font-bold text-foreground">
@@ -339,9 +405,28 @@ export function AccountSettings() {
               <span className="text-xs text-muted-foreground">
                 {loading ? "Loading..." : profile?.email || "developer@example.com"}
               </span>
+              <div className="flex items-center gap-2 mt-2">
+                <label
+                  htmlFor="avatar-file-input"
+                  className="text-[11px] font-semibold text-primary hover:underline cursor-pointer flex items-center gap-1 bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded border border-primary/20 transition-colors"
+                >
+                  <Upload className="h-3 w-3" />
+                  <span>{avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                </label>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="text-[11px] font-semibold text-danger hover:underline cursor-pointer flex items-center gap-1 bg-danger/10 hover:bg-danger/20 px-2 py-0.5 rounded border border-danger/20 transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-status-online text-status-online-foreground capitalize">
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-status-online text-status-online-foreground capitalize self-start sm:self-center">
             {profile?.status || "Active"}
           </span>
         </div>

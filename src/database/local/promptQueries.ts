@@ -7,6 +7,7 @@ export interface CreatePromptPayload {
   description?: string;
   category?: string;
   categoryId?: string;
+  subcategoryId?: string | null;
   projectId?: string;
   tags?: string[];
   content: string;
@@ -26,6 +27,7 @@ export interface UpdateMetaPayload {
   description?: string;
   category?: string;
   categoryId?: string;
+  subcategoryId?: string | null;
   projectId?: string;
   tags?: string[];
   textDirection?: "ltr" | "rtl" | "auto";
@@ -35,6 +37,8 @@ export interface UpdateMetaPayload {
 export interface GetPromptsOptions {
   category?: string;
   categoryId?: string;
+  subcategoryId?: string;
+  subcategory?: string;
   projectId?: string;
   search?: string;
   favoriteOnly?: boolean;
@@ -94,13 +98,14 @@ export async function createPromptDb(db: Database, payload: CreatePromptPayload,
 
   const tx = db.transaction(() => {
     const insertPrompt = db.prepare(`
-      INSERT INTO prompts (id, title, description, category, category_id, project_id, is_favorite, is_archived, current_version, text_direction, language, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?, ?, ?)
+      INSERT INTO prompts (id, title, description, category, category_id, subcategory_id, project_id, is_favorite, is_archived, current_version, text_direction, language, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 1, ?, ?, ?, ?)
     `);
     const direction = payload.textDirection || "auto";
     const lang = payload.language || "auto";
     const projId = payload.projectId || "proj_default";
-    insertPrompt.run(promptId, title, description, catInfo.name, catInfo.id, projId, direction, lang, now, now);
+    const subcatId = payload.subcategoryId?.trim() || null;
+    insertPrompt.run(promptId, title, description, catInfo.name, catInfo.id, subcatId, projId, direction, lang, now, now);
 
     const insertVersion = db.prepare(`
       INSERT INTO prompt_versions (id, prompt_id, version_number, content, change_summary, created_at)
@@ -183,7 +188,7 @@ export async function addPromptVersionDb(db: Database, payload: AddVersionPayloa
 }
 
 export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
-  const { promptId, title, description, category, categoryId, projectId, tags, textDirection, language } = payload;
+  const { promptId, title, description, category, categoryId, subcategoryId, projectId, tags, textDirection, language } = payload;
   const now = Date.now();
 
   const tx = db.transaction(() => {
@@ -209,6 +214,10 @@ export function updatePromptMetaDb(db: Database, payload: UpdateMetaPayload) {
     if (language !== undefined) {
       fields.push("language = ?");
       params.push(language);
+    }
+    if (subcategoryId !== undefined) {
+      fields.push("subcategory_id = ?");
+      params.push(subcategoryId ? subcategoryId.trim() : null);
     }
     if (categoryId !== undefined || category !== undefined) {
       const catInfo = resolveCategoryInfo(db, categoryId, category);
@@ -272,9 +281,63 @@ export function incrementPromptUsageDb(db: Database, promptId: string) {
 }
 
 export function deletePromptDb(db: Database, promptId: string) {
-  const stmt = db.prepare(`DELETE FROM prompts WHERE id = ?`);
-  stmt.run(promptId);
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM prompt_tags WHERE prompt_id = ?`).run(promptId);
+    db.prepare(`DELETE FROM prompt_versions WHERE prompt_id = ?`).run(promptId);
+    db.prepare(`DELETE FROM prompts WHERE id = ?`).run(promptId);
+  });
+  tx();
   return { success: true };
+}
+
+export function deletePromptVersionsDb(
+  db: Database,
+  promptId: string,
+  versionIds: string[]
+): { success: boolean; updatedVersionNumber?: number; error?: string } {
+  if (!versionIds || versionIds.length === 0) {
+    return { success: false, error: "No version IDs specified for deletion." };
+  }
+
+  const prompt = db.prepare(`SELECT id, current_version FROM prompts WHERE id = ?`).get(promptId) as
+    | { id: string; current_version: number }
+    | undefined;
+
+  if (!prompt) {
+    return { success: false, error: "Prompt not found." };
+  }
+
+  const allVersions = db
+    .prepare(`SELECT id, version_number, content FROM prompt_versions WHERE prompt_id = ? ORDER BY version_number ASC`)
+    .all(promptId) as { id: string; version_number: number; content: string }[];
+
+  const remaining = allVersions.filter((v) => !versionIds.includes(v.id));
+  if (remaining.length === 0) {
+    return {
+      success: false,
+      error: "Cannot delete all versions. A prompt must retain at least one version.",
+    };
+  }
+
+  const now = Date.now();
+  const highestRemaining = remaining[remaining.length - 1];
+
+  const tx = db.transaction(() => {
+    for (const vId of versionIds) {
+      db.prepare(`DELETE FROM prompt_versions WHERE id = ? AND prompt_id = ?`).run(vId, promptId);
+    }
+
+    db.prepare(`
+      UPDATE prompts SET current_version = ?, updated_at = ? WHERE id = ?
+    `).run(highestRemaining.version_number, now, promptId);
+  });
+
+  try {
+    tx();
+    return { success: true, updatedVersionNumber: highestRemaining.version_number };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete versions." };
+  }
 }
 
 export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
@@ -283,16 +346,19 @@ export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
       p.id, p.title, p.description, p.is_favorite, p.is_archived,
       p.current_version, p.created_at, p.updated_at,
       p.category_id,
+      p.subcategory_id,
       p.project_id,
       p.text_direction,
       p.language,
       COALESCE(c.name, p.category) as category,
       COALESCE(c.folder_name, p.category) as category_folder_name,
+      sub.name as subcategory_name,
       COALESCE(pr.name, 'General Workspace') as project_name,
       COALESCE(pr.color, '#6366f1') as project_color,
       pv.content as current_content
     FROM prompts p
     LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN subcategories sub ON p.subcategory_id = sub.id
     LEFT JOIN projects pr ON p.project_id = pr.id
     LEFT JOIN prompt_versions pv ON p.id = pv.prompt_id AND p.current_version = pv.version_number
     WHERE p.is_archived = 0
@@ -302,6 +368,14 @@ export function getPromptsDb(db: Database, options: GetPromptsOptions = {}) {
   if (options.projectId) {
     query += ` AND p.project_id = ?`;
     params.push(options.projectId);
+  }
+
+  if (options.subcategoryId) {
+    query += ` AND p.subcategory_id = ?`;
+    params.push(options.subcategoryId);
+  } else if (options.subcategory && options.subcategory !== "All") {
+    query += ` AND (p.subcategory_id = ? OR LOWER(sub.name) = LOWER(?))`;
+    params.push(options.subcategory.trim(), options.subcategory.trim());
   }
 
   if (options.categoryId) {
@@ -347,10 +421,12 @@ export function getPromptByIdDb(db: Database, promptId: string) {
       p.*,
       COALESCE(c.name, p.category) as category,
       COALESCE(c.folder_name, p.category) as category_folder_name,
+      sub.name as subcategory_name,
       COALESCE(pr.name, 'General Workspace') as project_name,
       COALESCE(pr.color, '#6366f1') as project_color
     FROM prompts p
     LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN subcategories sub ON p.subcategory_id = sub.id
     LEFT JOIN projects pr ON p.project_id = pr.id
     WHERE p.id = ?
   `);

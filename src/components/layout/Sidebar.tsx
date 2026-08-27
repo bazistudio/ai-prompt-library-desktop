@@ -114,24 +114,39 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
   }
 
   return (
-    <aside className="w-64 border-r border-border bg-card p-4 hidden md:flex flex-col h-[calc(100vh-65px)] sticky top-[65px] shrink-0 overflow-y-auto z-30 transition-all duration-200">
-      {/* Sidebar Top Collapse Header */}
-      <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-          Workspace
-        </span>
+    <aside className="w-64 border-r border-border bg-card px-3 py-2.5 hidden md:flex flex-col h-[calc(100vh-65px)] sticky top-[65px] shrink-0 overflow-hidden z-30 transition-all duration-200">
+      {/* 1. Locked Top: Dashboard Link & Collapse Header */}
+      <div className="shrink-0 flex items-center justify-between pb-1.5 mb-1.5 border-b border-border/40">
+        <Link
+          to="/dashboard"
+          className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold transition-colors flex-1 mr-1.5 ${
+            pathname === "/dashboard"
+              ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <LayoutDashboard className={`h-3.5 w-3.5 ${pathname === "/dashboard" ? "text-primary-foreground" : "text-primary"}`} />
+          <span>Dashboard</span>
+        </Link>
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
           title="Collapse Sidebar"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <SidebarCategory />
-      <SidebarFooter />
+      {/* 2. Scrollable Middle Area: Categories & Prompts */}
+      <div className="flex-1 overflow-y-auto min-h-0 pr-0.5">
+        <SidebarCategory />
+      </div>
+
+      {/* 3. Locked Bottom: Settings Footer */}
+      <div className="shrink-0 pt-1.5 mt-auto">
+        <SidebarFooter />
+      </div>
     </aside>
   );
 }

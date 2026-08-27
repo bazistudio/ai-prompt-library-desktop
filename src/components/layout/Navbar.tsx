@@ -1,14 +1,24 @@
-import { Link } from "react-router-dom";
-import { Terminal, Home, Search, Sun, Moon, UserCircle, Menu, PlusCircle, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Terminal,
+  Home,
+  Search,
+  Sun,
+  Moon,
+  UserCircle,
+  Menu,
+  PlusCircle,
+  Zap,
+  Lock,
+  Loader2,
+} from "lucide-react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { LogoutButton } from "@/components/ui/LogoutButton";
+import { NavbarSearchBar } from "@/components/layout/NavbarSearchBar";
 
 interface NavbarProps {
   onMenuToggle: () => void;
   onQuickCapture?: () => void;
-  onOpenCommandPalette?: () => void;
-  onToggleSidebarCollapse?: () => void;
-  isSidebarCollapsed?: boolean;
   username: string;
   email: string;
 }
@@ -16,13 +26,82 @@ interface NavbarProps {
 export function Navbar({
   onMenuToggle,
   onQuickCapture,
-  onOpenCommandPalette,
-  onToggleSidebarCollapse,
-  isSidebarCollapsed = false,
   username,
   email,
 }: NavbarProps) {
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
+  const [locking, setLocking] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("ai_prompt_library_user_avatar");
+    } catch {
+      return null;
+    }
+  });
+
+  // Listen to profile avatar updates in real-time
+  useEffect(() => {
+    const handleAvatarUpdate = (e: any) => {
+      try {
+        const customUrl = e?.detail ?? localStorage.getItem("ai_prompt_library_user_avatar");
+        setUserAvatar(customUrl || null);
+      } catch {
+        setUserAvatar(null);
+      }
+    };
+
+    window.addEventListener("user-avatar-updated", handleAvatarUpdate);
+    window.addEventListener("storage", handleAvatarUpdate);
+    return () => {
+      window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
+      window.removeEventListener("storage", handleAvatarUpdate);
+    };
+  }, []);
+
+  const handleLockAction = async () => {
+    setLocking(true);
+    try {
+      // 1. Check Electron native security if active
+      if (typeof window !== "undefined" && window.electronAPI?.security) {
+        const secStatus = await window.electronAPI.security.getStatus();
+        if (secStatus && (secStatus.hasPassword || secStatus.hasPin)) {
+          await window.electronAPI.security.toggleLock(true);
+          window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+          return;
+        }
+      }
+
+      // 2. Check local storage security
+      const hasLocalPass =
+        typeof window !== "undefined" &&
+        Boolean(
+          localStorage.getItem("appLockPasswordHash") ||
+          localStorage.getItem("appLockPassword") ||
+          localStorage.getItem("appLockPasswordPlain")
+        );
+      const hasLocalPin =
+        typeof window !== "undefined" &&
+        Boolean(
+          localStorage.getItem("appLockPinHash") ||
+          localStorage.getItem("appLockPin") ||
+          localStorage.getItem("appLockPinPlain")
+        );
+
+      if (hasLocalPass || hasLocalPin) {
+        localStorage.setItem("ai_prompt_library_is_locked", "true");
+        window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+      } else {
+        // If no lock credential is configured yet, guide user straight to Settings -> Account/Security
+        navigate("/settings?tab=account");
+      }
+    } catch (err) {
+      console.error("Lock trigger error:", err);
+      navigate("/settings?tab=account");
+    } finally {
+      setLocking(false);
+    }
+  };
 
   return (
     <header className="glass-card sticky top-0 z-40 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between h-[65px] w-full border-b border-border bg-card/80 backdrop-blur-md">
@@ -35,20 +114,6 @@ export function Navbar({
           aria-label="Toggle Navigation Menu"
         >
           <Menu className="h-5 w-5" />
-        </button>
-
-        {/* Desktop Sidebar Collapse Toggle */}
-        <button
-          type="button"
-          onClick={onToggleSidebarCollapse}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground hidden md:flex items-center justify-center cursor-pointer shrink-0 transition-colors"
-          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
         </button>
 
         {/* Brand Logo & Title */}
@@ -89,26 +154,13 @@ export function Navbar({
         </Link>
       </div>
 
-      {/* Center Search (Interactive Command Palette Trigger) */}
-      <div className="flex-1 max-w-xs lg:max-w-sm mx-2 lg:mx-4 hidden md:block">
-        <button
-          type="button"
-          onClick={onOpenCommandPalette}
-          className="w-full flex items-center justify-between px-3 py-1.5 sm:py-2 rounded-lg border border-border bg-card/60 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs group"
-          title="Search prompts or jump to actions (⌘K)"
-        >
-          <div className="flex items-center gap-2.5 truncate">
-            <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-            <span className="text-xs truncate">Search prompts & actions...</span>
-          </div>
-          <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border rounded shrink-0">
-            ⌘K
-          </kbd>
-        </button>
+      {/* Center Search (Direct Inline Input & Results Dropdown) */}
+      <div className="flex-1 max-w-sm lg:max-w-md mx-2 lg:mx-4 hidden md:flex justify-center">
+        <NavbarSearchBar />
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 shrink-0">
         {/* Quick Capture Button */}
         <button
           type="button"
@@ -131,9 +183,12 @@ export function Navbar({
 
         {/* Mobile Search Icon */}
         <button
-          onClick={onOpenCommandPalette}
+          onClick={() => {
+            const input = document.querySelector<HTMLInputElement>('input[placeholder*="Search prompts"]');
+            input?.focus();
+          }}
           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground md:hidden cursor-pointer shrink-0"
-          title="Search prompts & actions"
+          title="Search prompts by title, category, tags"
         >
           <Search className="h-4.5 w-4.5" />
         </button>
@@ -151,17 +206,40 @@ export function Navbar({
           )}
         </button>
 
-        {/* Profile indicator */}
-        <div className="hidden sm:flex items-center gap-2 shrink-0">
-          <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary">
-            <UserCircle className="h-4.5 w-4.5 text-accent" />
-          </div>
-        </div>
+        {/* App Lock Button */}
+        <button
+          type="button"
+          onClick={handleLockAction}
+          disabled={locking}
+          className="p-1.5 rounded-lg border border-border/60 bg-card/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer flex items-center justify-center shrink-0"
+          title="Lock Application (or set PIN/Password in Settings)"
+          aria-label="Lock Application"
+        >
+          {locking ? (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          ) : (
+            <Lock className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+          )}
+        </button>
 
-        {/* Logout */}
-        <div className="shrink-0">
-          <LogoutButton />
-        </div>
+        {/* User Profile Avatar Link */}
+        <Link
+          to="/settings?tab=account"
+          className="flex items-center p-0.5 rounded-full hover:ring-2 hover:ring-primary/40 transition-all cursor-pointer shrink-0 group"
+          title={`Profile (${username}) — Click to configure avatar or account`}
+        >
+          <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary overflow-hidden shadow-2xs">
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt="Profile Avatar"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <UserCircle className="h-5 w-5 text-accent group-hover:scale-105 transition-transform" />
+            )}
+          </div>
+        </Link>
       </div>
     </header>
   );

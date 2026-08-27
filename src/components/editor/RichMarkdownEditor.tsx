@@ -3153,7 +3153,7 @@ export function RichMarkdownEditor({
       </div>
 
       {/* 2. Single Unified Editor Workspace Body */}
-      <div className="relative flex flex-col flex-1 bg-background">
+      <div className="relative flex flex-col flex-1 min-h-0 bg-background overflow-hidden">
         {(!value || value.trim() === "") && (
           <div
             className="absolute top-5 left-5 pointer-events-none text-muted-foreground/60 text-sm select-none"
@@ -3181,8 +3181,7 @@ export function RichMarkdownEditor({
           onContextMenu={handleEditorContextMenu}
           onDrop={handleDrop}
           dir={activeDirection}
-          className={`w-full p-5 text-sm leading-relaxed bg-transparent text-foreground focus:outline-none scrollbar-thin overflow-y-auto ${minHeight}`}
-          style={{ minHeight: "380px" }}
+          className={`w-full p-5 text-sm leading-relaxed bg-transparent text-foreground focus:outline-none scrollbar-thin overflow-y-auto flex-1 min-h-0 ${minHeight || ""}`}
         />
 
         {/* 3. Floating Contextual Link Action Toolbar (Fix 9) */}

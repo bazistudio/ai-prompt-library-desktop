@@ -123,13 +123,20 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
 
-            // File Menu
+            // 1. File Menu
             let file_menu = SubmenuBuilder::new(handle, "File")
+                .item(&MenuItem::with_id(handle, "new_prompt", "New Prompt", true, Some("CmdOrCtrl+N"))?)
+                .item(&MenuItem::with_id(handle, "quick_capture", "Quick Capture", true, Some("CmdOrCtrl+Shift+N"))?)
+                .item(&MenuItem::with_id(handle, "open_library", "Open Library", true, Some("CmdOrCtrl+O"))?)
+                .separator()
+                .item(&MenuItem::with_id(handle, "open_storage", "Open Storage Folder in Explorer", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "settings", "Settings", true, Some("CmdOrCtrl+,"))?)
+                .separator()
                 .close_window()
                 .quit()
                 .build()?;
 
-            // Edit Menu
+            // 2. Edit Menu
             let edit_menu = SubmenuBuilder::new(handle, "Edit")
                 .undo()
                 .redo()
@@ -140,13 +147,46 @@ fn main() {
                 .select_all()
                 .build()?;
 
-            // View Menu
+            // 3. View Menu
             let view_menu = SubmenuBuilder::new(handle, "View")
+                .item(&MenuItem::with_id(handle, "view_dashboard", "Dashboard", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "view_library", "Prompt Library", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "view_workflows", "Workflows", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "view_settings", "Settings", true, None::<&str>)?)
+                .separator()
+                .item(&MenuItem::with_id(handle, "command_palette", "Command Palette", true, Some("CmdOrCtrl+K"))?)
+                .item(&MenuItem::with_id(handle, "toggle_sidebar", "Toggle Sidebar", true, Some("CmdOrCtrl+B"))?)
                 .fullscreen()
+                .item(&MenuItem::with_id(handle, "toggle_theme", "Toggle Theme", true, None::<&str>)?)
                 .build()?;
 
-            // Help Menu
+            // 4. Prompt Menu
+            let prompt_menu = SubmenuBuilder::new(handle, "Prompt")
+                .item(&MenuItem::with_id(handle, "prompt_new", "Create New Prompt", true, Some("CmdOrCtrl+N"))?)
+                .item(&MenuItem::with_id(handle, "prompt_favorites", "View Favorites", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "prompt_quick_capture", "Quick Capture", true, Some("CmdOrCtrl+Shift+N"))?)
+                .item(&MenuItem::with_id(handle, "prompt_version_history", "View Version History", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "prompt_delete", "Delete Prompt", true, None::<&str>)?)
+                .build()?;
+
+            // 5. Workspace Menu
+            let workspace_menu = SubmenuBuilder::new(handle, "Workspace")
+                .item(&MenuItem::with_id(handle, "workspace_switch", "Switch Workspace / Project", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "workspace_categories", "Manage Categories", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "workspace_settings", "Workspace Settings", true, None::<&str>)?)
+                .build()?;
+
+            // 6. Tools Menu
+            let tools_menu = SubmenuBuilder::new(handle, "Tools")
+                .item(&MenuItem::with_id(handle, "tools_search", "Search Prompts", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "tools_storage", "Open Storage Folder in Explorer", true, None::<&str>)?)
+                .build()?;
+
+            // 7. Help Menu
             let help_menu = SubmenuBuilder::new(handle, "Help")
+                .item(&MenuItem::with_id(handle, "documentation", "Documentation", true, None::<&str>)?)
+                .item(&MenuItem::with_id(handle, "shortcuts", "Keyboard Shortcuts", true, Some("CmdOrCtrl+/"))?)
+                .separator()
                 .item(&MenuItem::with_id(handle, "check_updates", "Check for Updates...", true, None::<&str>)?)
                 .separator()
                 .item(&MenuItem::with_id(handle, "about", "About AI Prompt Library", true, None::<&str>)?)
@@ -156,6 +196,9 @@ fn main() {
                 .item(&file_menu)
                 .item(&edit_menu)
                 .item(&view_menu)
+                .item(&prompt_menu)
+                .item(&workspace_menu)
+                .item(&tools_menu)
                 .item(&help_menu)
                 .build()?;
 
@@ -164,14 +207,9 @@ fn main() {
             Ok(())
         })
         .on_menu_event(|app, event| {
-            if event.id() == "check_updates" {
-                let _ = app.emit("trigger-check-updates", ());
-            } else if event.id() == "about" {
-                let _ = app.emit("open-about-dialog", ());
-            }
+            let event_id = event.id().as_ref();
+            let _ = app.emit("menu-action", event_id);
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-

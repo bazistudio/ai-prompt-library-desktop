@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Lock, KeyRound, ShieldAlert, ArrowRight, RefreshCw } from "lucide-react";
-
 import { SecurityStatusData } from "@/types/electron";
 
 export function LockScreen() {
@@ -29,13 +28,54 @@ export function LockScreen() {
           setCooldown(res.lockoutRemainingSeconds);
         }
       } catch (err) {
-        console.error("Failed to get security status:", err);
+        console.error("Failed to get security status from electron:", err);
+      }
+    } else if (typeof window !== "undefined") {
+      // Local fallback for desktop/web
+      const hasPass = Boolean(
+        localStorage.getItem("appLockPasswordHash") ||
+        localStorage.getItem("appLockPassword") ||
+        localStorage.getItem("appLockPasswordPlain")
+      );
+      const hasPin = Boolean(
+        localStorage.getItem("appLockPinHash") ||
+        localStorage.getItem("appLockPin") ||
+        localStorage.getItem("appLockPinPlain")
+      );
+      const isLocked = localStorage.getItem("ai_prompt_library_is_locked") === "true";
+      const method = (localStorage.getItem("appLockMethod") as "password" | "pin") || (hasPin ? "pin" : "password");
+
+      if ((hasPass || hasPin) && isLocked) {
+        setStatus({
+          enabled: true,
+          method,
+          isLocked: true,
+          hasPassword: hasPass,
+          hasPin: hasPin,
+          requireStartup: false,
+          hasRecoveryKey: Boolean(localStorage.getItem("appLockRecoveryKey")),
+          lockoutRemainingSeconds: 0,
+          hasSecurityQuestions: false,
+        });
+      } else {
+        setStatus(null);
       }
     }
   };
 
   useEffect(() => {
     fetchStatus();
+
+    const handleLockStateChanged = () => {
+      fetchStatus();
+    };
+
+    window.addEventListener("app:lock-state-changed", handleLockStateChanged);
+    window.addEventListener("storage", handleLockStateChanged);
+    return () => {
+      window.removeEventListener("app:lock-state-changed", handleLockStateChanged);
+      window.removeEventListener("storage", handleLockStateChanged);
+    };
   }, []);
 
   // Cooldown timer interval
@@ -75,6 +115,27 @@ export function LockScreen() {
           if (res.lockoutRemaining && res.lockoutRemaining > 0) {
             setCooldown(res.lockoutRemaining);
           }
+        }
+      } else {
+        // Local credential validation
+        const storedPass =
+          localStorage.getItem("appLockPasswordPlain") ||
+          localStorage.getItem("appLockPassword") ||
+          localStorage.getItem("appLockPasswordHash");
+        const storedPin =
+          localStorage.getItem("appLockPinPlain") ||
+          localStorage.getItem("appLockPin") ||
+          localStorage.getItem("appLockPinHash");
+        const method = localStorage.getItem("appLockMethod") || (storedPin ? "pin" : "password");
+
+        const target = method === "pin" ? storedPin : (storedPass || storedPin);
+        if (target && input === target) {
+          localStorage.setItem("ai_prompt_library_is_locked", "false");
+          setInput("");
+          setStatus(null);
+          window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        } else {
+          setError(`Incorrect ${method === "pin" ? "PIN" : "Password"}.`);
         }
       }
     } catch (err: any) {
@@ -118,6 +179,22 @@ export function LockScreen() {
           await fetchStatus();
         } else {
           setRecoveryError(res.error || "Recovery failed. Access denied.");
+        }
+      } else {
+        // Local recovery check
+        const storedRecoveryKey = localStorage.getItem("appLockRecoveryKey");
+        if (!storedRecoveryKey || recoveryKeyInput.replace(/-/g, "") === storedRecoveryKey.replace(/-/g, "")) {
+          localStorage.setItem("appLockPasswordPlain", newPasswordInput);
+          localStorage.setItem("appLockPassword", newPasswordInput);
+          localStorage.setItem("ai_prompt_library_is_locked", "false");
+          setShowRecoveryModal(false);
+          setRecoveryKeyInput("");
+          setNewPasswordInput("");
+          setConfirmPasswordInput("");
+          setStatus(null);
+          window.dispatchEvent(new CustomEvent("app:lock-state-changed"));
+        } else {
+          setRecoveryError("Invalid Recovery Key. Access denied.");
         }
       }
     } catch (err: any) {
