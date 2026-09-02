@@ -60,6 +60,29 @@ fn save_prompt_markdown(
 }
 
 #[tauri::command]
+fn save_migration_backup(
+    storage_path: String,
+    filename: String,
+    content: String,
+) -> Result<String, String> {
+    if storage_path.trim().is_empty() {
+        return Err("Storage path is empty".to_string());
+    }
+    let base_path = Path::new(&storage_path);
+    if !base_path.exists() {
+        fs::create_dir_all(base_path).map_err(|e| e.to_string())?;
+    }
+    
+    let target_file = base_path.join(filename);
+    if target_file.exists() {
+        return Err("Backup file already exists, will not silently overwrite.".to_string());
+    }
+
+    fs::write(&target_file, content).map_err(|e| e.to_string())?;
+    Ok(target_file.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 fn open_in_file_manager(path: String) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("Path cannot be empty".to_string());
@@ -115,8 +138,10 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             save_prompt_markdown,
+            save_migration_backup,
             open_in_file_manager,
             ensure_storage_categories
         ])
