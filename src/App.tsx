@@ -1,9 +1,10 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import AdminLayout from "@/app/(admin)/layout";
 import { useAutoUpdater } from "@/hooks/useAutoUpdater";
 import { UpdateNotificationModal } from "@/components/updater/UpdateNotificationModal";
+import { runSQLiteMigration } from "@/services/migration/sqliteMigration";
 
 // Dashboard Views (Loaded directly for instant offline startup)
 import DashboardPage from "@/app/(dashboard)/dashboard/page";
@@ -45,6 +46,49 @@ function AdminLayoutWrapper() {
 
 export function App() {
   const updater = useAutoUpdater();
+  const [migrationStatus, setMigrationStatus] = useState<"INITIALIZING" | "MIGRATING" | "READY" | "ERROR">("INITIALIZING");
+
+  useEffect(() => {
+    async function initMigration() {
+      if (updater.isTauri) {
+        setMigrationStatus("MIGRATING");
+        try {
+          await runSQLiteMigration();
+          setMigrationStatus("READY");
+        } catch (e) {
+          console.error("Migration failed", e);
+          setMigrationStatus("ERROR");
+        }
+      } else {
+        setMigrationStatus("READY");
+      }
+    }
+    initMigration();
+  }, [updater.isTauri]);
+
+  if (migrationStatus === "INITIALIZING" || migrationStatus === "MIGRATING") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-muted-foreground">
+        <div className="animate-pulse mb-4">Initializing Secure Local Database...</div>
+        <div>Please wait while your workspace is prepared.</div>
+      </div>
+    );
+  }
+
+  if (migrationStatus === "ERROR") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-red-500">
+        <div className="text-lg font-bold mb-2">Database Initialization Failed</div>
+        <div className="mb-4 text-muted-foreground">Your existing library data has not been deleted.</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+        >
+          Retry Initialization
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>

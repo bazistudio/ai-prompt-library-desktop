@@ -2,7 +2,7 @@ import { getTauriSQLiteDB } from "@/database/local/sqliteManager";
 import { getStoragePath } from "@/services/storage/storageService";
 
 const MIGRATION_FLAG = "ai_prompt_library_sqlite_migration_completed";
-const APP_VERSION = "2.0.1";
+const APP_VERSION = "2.0.2";
 const MIGRATION_VERSION = "1";
 
 export async function runSQLiteMigration() {
@@ -33,10 +33,17 @@ export async function runSQLiteMigration() {
 
   // 2. Write Backup to Disk via Rust/Tauri Command
   const backupFileName = `migration_backup_${Date.now()}.json`;
-  const storagePath = await getStoragePath();
+  let storagePath = await getStoragePath();
+  
   if (!storagePath) {
-    console.error("[Migration] Storage path not found. Cannot create backup. Aborting migration.");
-    return;
+    try {
+      const { appLocalDataDir } = await import("@tauri-apps/api/path");
+      storagePath = await appLocalDataDir();
+      console.log(`[Migration] No user storage path found. Using AppLocalData fallback for backup: ${storagePath}`);
+    } catch (e) {
+      console.error("[Migration] Failed to resolve fallback backup path.", e);
+      throw new Error("Failed to resolve fallback backup path.");
+    }
   }
 
   const backupPayload = {

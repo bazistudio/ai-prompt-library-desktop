@@ -1,12 +1,37 @@
 import Database from "@tauri-apps/plugin-sql";
+import { getStoragePath } from "@/services/storage/storageService";
 
 let dbInstance: Database | null = null;
+let currentDbPath: string | null = null;
 
 export async function getTauriSQLiteDB(): Promise<Database> {
-  if (dbInstance) return dbInstance;
+  const storagePath = await getStoragePath();
+  let dbPath = "sqlite:prompt_library.db"; // Default to AppData if not set
+
+  if (storagePath) {
+    // Clean trailing slashes and ensure forward slashes for Tauri path parsing
+    const cleanPath = storagePath.replace(/\\/g, '/').replace(/\/$/, "");
+    dbPath = `sqlite:${cleanPath}/prompt_library.db`;
+  }
+
+  // If we already have a connection to the correct path, return it
+  if (dbInstance && currentDbPath === dbPath) {
+    return dbInstance;
+  }
+
+  // If path changed, we must close the old connection
+  if (dbInstance) {
+    try {
+      await dbInstance.close();
+    } catch (e) {
+      console.warn("Failed to close old database connection:", e);
+    }
+    dbInstance = null;
+  }
   
   // Connect to the local SQLite database via Tauri plugin
-  dbInstance = await Database.load("sqlite:prompt_library.db");
+  dbInstance = await Database.load(dbPath);
+  currentDbPath = dbPath;
   
   // Tauri-SQL wrapper to execute schema initialization queries.
   await runTauriSchemaMigrations(dbInstance);
