@@ -6,6 +6,7 @@ export interface ProjectItem {
   icon: string;
   sort_order: number;
   is_default: boolean;
+  status: string;
   prompt_count?: number;
   created_at: number;
   updated_at: number;
@@ -16,6 +17,7 @@ export interface CreateProjectInput {
   description?: string;
   color?: string;
   icon?: string;
+  status?: string;
 }
 
 export interface UpdateProjectInput {
@@ -23,6 +25,7 @@ export interface UpdateProjectInput {
   description?: string;
   color?: string;
   icon?: string;
+  status?: string;
 }
 
 const DEFAULT_PROJECTS: ProjectItem[] = [
@@ -32,6 +35,7 @@ const DEFAULT_PROJECTS: ProjectItem[] = [
     description: "Default prompt engineering workspace",
     color: "#6366f1",
     icon: "folder",
+    status: "Active",
     sort_order: 1,
     is_default: true,
     created_at: 1700000000000,
@@ -115,6 +119,7 @@ export async function createProject(input: CreateProjectInput): Promise<{ succes
     description: input.description || null,
     color: input.color || "#6366f1",
     icon: input.icon || "folder",
+    status: input.status || "Active",
     sort_order: current.length + 1,
     is_default: false,
     created_at: Date.now(),
@@ -156,6 +161,7 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
         description: input.description !== undefined ? (input.description || null) : p.description,
         color: input.color || p.color,
         icon: input.icon || p.icon,
+        status: input.status || p.status || "Active",
         updated_at: Date.now(),
       };
       return updated;

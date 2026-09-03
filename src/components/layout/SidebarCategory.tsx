@@ -11,6 +11,7 @@ import {
   Workflow,
   ChevronDown,
   ChevronRight,
+  Briefcase,
 } from "lucide-react";
 import { CategoryItem, fetchCategories } from "@/services/categories/categoryService";
 import {
@@ -178,6 +179,18 @@ function SidebarCategoryContent({ onNavigate }: SidebarCategoryProps) {
           <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-background/20 font-bold">
             Chains
           </span>
+        </Link>
+        <Link
+          to="/projects"
+          onClick={onNavigate}
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            pathname.startsWith("/projects")
+              ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+        >
+          <Briefcase className="h-3.5 w-3.5" />
+          <span className="flex-1">Projects</span>
         </Link>
         <Link
           to="/prompts?favorite=true"

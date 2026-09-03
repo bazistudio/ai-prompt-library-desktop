@@ -13,6 +13,8 @@ import CreatePromptPage from "@/app/(dashboard)/prompts/new/page";
 import PromptDetailPage from "@/app/(dashboard)/prompts/[id]/page";
 import WorkflowsPage from "@/app/(dashboard)/workflows/page";
 import WorkflowDetailPage from "@/app/(dashboard)/workflows/[id]/page";
+import ProjectsLibraryPage from "@/app/(dashboard)/projects/page";
+import ProjectDetailPage from "@/app/(dashboard)/projects/[id]/page";
 import TemplateLibraryPage from "@/app/(dashboard)/templates/page";
 import ArenaPage from "@/app/(dashboard)/arena/page";
 import SettingsPage from "@/app/(dashboard)/settings/page";
@@ -118,6 +120,8 @@ export function App() {
             <Route path="/prompts/:id" element={<PromptDetailPage />} />
             <Route path="/workflows" element={<WorkflowsPage />} />
             <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
+            <Route path="/projects" element={<ProjectsLibraryPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="/templates" element={<TemplateLibraryPage />} />
             <Route path="/arena" element={<ArenaPage />} />
             <Route path="/settings" element={<SettingsPage />} />

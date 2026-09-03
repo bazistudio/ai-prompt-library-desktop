@@ -149,10 +149,20 @@ export function initializeSchema(db: Database) {
       icon TEXT NOT NULL DEFAULT 'folder',
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_default INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'Active',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
   `);
+
+  // Add status column to projects if missing (additive, safe)
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN status TEXT DEFAULT 'Active';`);
+  } catch (err) {
+    if (!(err instanceof Error) || !err.message.includes('duplicate column name')) {
+      console.warn(`[DB] Migration warn: Could not add status to projects:`, err);
+    }
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS categories (
