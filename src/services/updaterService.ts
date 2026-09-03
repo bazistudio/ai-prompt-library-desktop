@@ -2,6 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { check, Update, DownloadEvent } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
+import packageInfo from "../../package.json";
 
 export interface UpdateInfo {
   available: boolean;
@@ -35,12 +36,12 @@ class UpdaterService {
    */
   public async getCurrentAppVersion(): Promise<string> {
     if (!this.isTauriRuntime()) {
-      return "2.0.1";
+      return packageInfo.version || "2.0.2";
     }
     try {
       return await getVersion();
     } catch {
-      return "2.0.1";
+      return packageInfo.version || "2.0.2";
     }
   }
 

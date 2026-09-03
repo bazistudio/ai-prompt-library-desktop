@@ -70,25 +70,31 @@ export function App() {
 
   if (migrationStatus === "INITIALIZING" || migrationStatus === "MIGRATING") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-muted-foreground">
-        <div className="animate-pulse mb-4">Initializing Secure Local Database...</div>
-        <div>Please wait while your workspace is prepared.</div>
-      </div>
+      <>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-muted-foreground">
+          <div className="animate-pulse mb-4">Initializing Secure Local Database...</div>
+          <div>Please wait while your workspace is prepared.</div>
+        </div>
+        <UpdateNotificationModal updater={updater} />
+      </>
     );
   }
 
   if (migrationStatus === "ERROR") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-red-500">
-        <div className="text-lg font-bold mb-2">Database Initialization Failed</div>
-        <div className="mb-4 text-muted-foreground">Your existing library data has not been deleted.</div>
-        <button 
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-        >
-          Retry Initialization
-        </button>
-      </div>
+      <>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center text-sm text-red-500">
+          <div className="text-lg font-bold mb-2">Database Initialization Failed</div>
+          <div className="mb-4 text-muted-foreground">Your existing library data has not been deleted.</div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          >
+            Retry Initialization
+          </button>
+        </div>
+        <UpdateNotificationModal updater={updater} />
+      </>
     );
   }
 

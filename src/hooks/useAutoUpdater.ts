@@ -29,7 +29,7 @@ export interface AutoUpdaterState {
 
 export function useAutoUpdater(): AutoUpdaterState {
   const [status, setStatus] = useState<UpdaterStatus>("idle");
-  const [currentVersion, setCurrentVersion] = useState<string>("1.0.9");
+  const [currentVersion, setCurrentVersion] = useState<string>("");
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
@@ -41,13 +41,15 @@ export function useAutoUpdater(): AutoUpdaterState {
   const hasCheckedRef = useRef(false);
   const isTauri = updaterService.isTauriRuntime();
 
-  // Initialize version on mount
+  // Initialize version dynamically on mount from runtime
   useEffect(() => {
-    if (isTauri) {
-      updaterService.getCurrentAppVersion().then((ver) => {
-        if (ver) setCurrentVersion(ver);
-      });
-    }
+    let isMounted = true;
+    updaterService.getCurrentAppVersion().then((ver) => {
+      if (isMounted && ver) setCurrentVersion(ver);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [isTauri]);
 
   const executeUpdateCheck = useCallback(async (isManual: boolean = false) => {
@@ -77,10 +79,19 @@ export function useAutoUpdater(): AutoUpdaterState {
       const checkPromise = updaterService.checkForUpdate();
       const result = await Promise.race([checkPromise, timeoutPromise]);
 
+      // Resolve version dynamically at runtime — never stale, no dependency on currentVersion
+      const activeVersion =
+        (result && !("timeout" in result) && result?.currentVersion) ||
+        (await updaterService.getCurrentAppVersion());
+
+      if (activeVersion) {
+        setCurrentVersion(activeVersion);
+      }
+
       if (result && "timeout" in result) {
         setStatus("up-to-date");
         setIsManualChecking(false);
-        setManualMessage(`Search timed out. You are currently on v${currentVersion}.`);
+        setManualMessage(`Search timed out. You are currently on v${activeVersion || "latest"}.`);
         return;
       }
 
@@ -90,7 +101,7 @@ export function useAutoUpdater(): AutoUpdaterState {
         setStatus("up-to-date");
         setIsManualChecking(false);
         if (isManual) {
-          setManualMessage(`Your application is already up to date (v${currentVersion}).`);
+          setManualMessage(`Your application is already up to date (v${activeVersion || "latest"}).`);
         }
         return;
       }
@@ -99,6 +110,7 @@ export function useAutoUpdater(): AutoUpdaterState {
       const nextVersion = updateInfo.version;
       setStatus("available");
       setAvailableVersion(nextVersion);
+      setIsModalOpen(true);
       if (updateInfo.body) {
         setReleaseNotes(updateInfo.body);
       }
@@ -142,9 +154,9 @@ export function useAutoUpdater(): AutoUpdaterState {
         setManualMessage(`Error checking for updates: ${msg}`);
       }
     }
-  }, [isTauri, currentVersion]);
+  }, [isTauri]);
 
-  // Startup silent update check (runs once 2s after startup)
+  // Startup silent update check (runs once 2.5s after startup)
   useEffect(() => {
     if (!isTauri || hasCheckedRef.current) return;
     hasCheckedRef.current = true;
@@ -156,19 +168,26 @@ export function useAutoUpdater(): AutoUpdaterState {
     return () => clearTimeout(timer);
   }, [isTauri, executeUpdateCheck]);
 
-  // Listen to native desktop menu events (Help -> Check for Updates)
+  // Listen to manual check triggers (native desktop menu via AppShell, About modal, or native Rust event)
   useEffect(() => {
-    if (!isTauri) return;
-    let unlisten: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen("trigger-check-updates", () => {
-        executeUpdateCheck(true);
-      }).then((unsub) => {
-        unlisten = unsub;
-      });
-    });
+    const handleCheckTrigger = () => {
+      executeUpdateCheck(true);
+    };
+
+    window.addEventListener("app:check-for-updates", handleCheckTrigger);
+
+    let unlistenTauri: (() => void) | undefined;
+    if (isTauri) {
+      import("@tauri-apps/api/event").then(({ listen }) => {
+        listen("trigger-check-updates", handleCheckTrigger).then((unsub) => {
+          unlistenTauri = unsub;
+        });
+      }).catch(() => {});
+    }
+
     return () => {
-      if (unlisten) unlisten();
+      window.removeEventListener("app:check-for-updates", handleCheckTrigger);
+      if (unlistenTauri) unlistenTauri();
     };
   }, [isTauri, executeUpdateCheck]);
 
